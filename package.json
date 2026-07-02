@@ -1,0 +1,9 @@
+{
+  "name": "neon-light-cycles",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Neon light-cycle game (browser, no build).",
+  "scripts": {
+    "test": "node --test"
+  }
+}
