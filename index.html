@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NEON CYCLES</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <!-- Menu overlay -->
+    <section id="menu" class="overlay">
+      <h1 class="neon-title">NEON&nbsp;CYCLES</h1>
+      <div class="menu-buttons">
+        <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
+        <button data-mode="2p" class="neon-btn magenta">2 PLAYER — FIRST TO 10</button>
+      </div>
+      <div id="leaderboard" class="leaderboard"></div>
+      <p class="hint">P1: W A S D &nbsp;•&nbsp; P2: ARROW KEYS</p>
+    </section>
+
+    <!-- Countdown overlay -->
+    <section id="countdown" class="overlay hidden"><span id="count">3</span></section>
+
+    <!-- HUD (during play) -->
+    <div id="hud" class="hud hidden"></div>
+
+    <!-- Round/Game over overlay -->
+    <section id="gameover" class="overlay hidden">
+      <h2 id="go-title" class="neon-title"></h2>
+      <div id="go-body"></div>
+      <button id="go-continue" class="neon-btn">PRESS ENTER</button>
+    </section>
+  </div>
+
+  <script src="src/geometry.js"></script>
+  <script src="src/snake.js"></script>
+  <script src="src/board.js"></script>
+  <script src="src/round.js"></script>
+  <script src="src/match.js"></script>
+  <script src="src/speed.js"></script>
+  <script src="src/leaderboard.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/renderer.js"></script>
+  <script src="src/input.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
