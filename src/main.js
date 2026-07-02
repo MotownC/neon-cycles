@@ -1,6 +1,7 @@
 (function () {
   const COLS = 64, ROWS = 40, MATCH_TARGET = 10;
   const canvas = document.getElementById('game');
+  const stage = document.getElementById('stage');
   let cell, ctx;
 
   const el = (id) => document.getElementById(id);
@@ -44,7 +45,7 @@
   }
 
   function endRound() {
-    Audio.crash(); state.phase = 'roundover';
+    Audio.crash(); flashCrash(); state.phase = 'roundover';
     if (state.mode === '1p') return finishSolo();
     Match.awardRound(state.match, state.round.winnerIndex);
     if (state.match.over) return finishMatch();
@@ -74,6 +75,13 @@
     goBody.innerHTML = `<p>SURVIVED ${time.toFixed(1)}s</p>` + renderBoard(board);
     el('go-continue').textContent = 'PRESS ENTER FOR MENU';
     state.phase = 'gameover';
+  }
+
+  function flashCrash() {
+    stage.classList.remove('crash');
+    void stage.offsetWidth; // restart the CSS animation even if triggered again quickly
+    stage.classList.add('crash');
+    setTimeout(() => stage.classList.remove('crash'), 350);
   }
 
   function renderBoard(board) {
