@@ -19,7 +19,6 @@ html, body {
   background: radial-gradient(ellipse at center, rgba(5,6,10,0.72), rgba(5,6,10,0.94));
   text-align: center;
 }
-.hidden { display: none; }
 
 .neon-title {
   font-size: clamp(28px, 7vw, 84px); letter-spacing: 6px; margin: 0;
@@ -52,3 +51,6 @@ html, body {
 #count { font-size: clamp(60px, 18vw, 200px); color: #fff;
   text-shadow: 0 0 16px var(--cyan), 0 0 40px var(--magenta); }
 .hint { opacity: .6; letter-spacing: 2px; }
+
+/* Utility: kept last in the cascade so it wins over any earlier same-specificity display rule (e.g. .hud). */
+.hidden { display: none; }
