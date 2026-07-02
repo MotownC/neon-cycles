@@ -10,7 +10,7 @@
 
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
-    elapsed: 0, acc: 0, last: 0, best: 0, raf: null,
+    elapsed: 0, acc: 0, last: 0, raf: null,
   };
 
   function show(node) { for (const o of [menu, countdown, gameover]) o.classList.add('hidden');
@@ -86,7 +86,7 @@
   function loop(now) {
     state.raf = requestAnimationFrame(loop);
     if (state.phase !== 'playing') return;
-    const dt = now - state.last; state.last = now;
+    const dt = Math.min(now - state.last, 250); state.last = now;
     state.elapsed += dt / 1000; state.acc += dt;
     Audio.setIntensity(Math.min(1, state.elapsed / 60));
     const interval = Speed.tickInterval(state.elapsed);
