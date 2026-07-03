@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NEON CYCLES</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=0.4.4" />
 </head>
 <body>
   <div id="stage">
@@ -15,10 +15,27 @@
       <h1 class="neon-title">NEON&nbsp;CYCLES</h1>
       <div class="menu-buttons">
         <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
+        <button data-mode="cpu" class="neon-btn cyan">1 PLAYER — VS CPU</button>
         <button data-mode="2p" class="neon-btn magenta">2 PLAYER — FIRST TO 10</button>
       </div>
+      <div class="wall-toggle" role="group" aria-label="Wall density">
+        <span class="hint">WALLS</span>
+        <button data-wall="none" class="wall-btn active">NONE</button>
+        <button data-wall="low" class="wall-btn">LOW</button>
+        <button data-wall="med" class="wall-btn">MED</button>
+        <button data-wall="high" class="wall-btn">HIGH</button>
+      </div>
+      <div class="turbo-toggle" role="group" aria-label="Turbo mode">
+        <span class="hint">TURBO</span>
+        <button data-turbo="off" class="wall-btn active">OFF</button>
+        <button data-turbo="on" class="wall-btn">ON</button>
+      </div>
+      <div class="color-toggle" id="color-toggle" role="group" aria-label="Cycle color">
+        <span class="hint">COLOR</span>
+      </div>
       <div id="leaderboard" class="leaderboard"></div>
-      <p class="hint">P1: W A S D &nbsp;•&nbsp; P2: ARROW KEYS</p>
+      <p class="hint">P1: ARROW KEYS &nbsp;•&nbsp; P2: W A S D &nbsp;•&nbsp; TURBO: P1 R-SHIFT / P2 L-SHIFT</p>
+      <p class="hint" id="version">v0.4.4</p>
     </section>
 
     <!-- Countdown overlay -->
@@ -35,16 +52,20 @@
     </section>
   </div>
 
-  <script src="src/geometry.js"></script>
-  <script src="src/snake.js"></script>
-  <script src="src/board.js"></script>
-  <script src="src/round.js"></script>
-  <script src="src/match.js"></script>
-  <script src="src/speed.js"></script>
-  <script src="src/leaderboard.js"></script>
-  <script src="src/audio.js"></script>
-  <script src="src/renderer.js"></script>
-  <script src="src/input.js"></script>
-  <script src="src/main.js"></script>
+  <!-- ?v= must match the version shown in the menu; bump both together so
+       browsers refetch scripts instead of reusing stale cached copies -->
+  <script src="src/geometry.js?v=0.4.4"></script>
+  <script src="src/snake.js?v=0.4.4"></script>
+  <script src="src/board.js?v=0.4.4"></script>
+  <script src="src/walls.js?v=0.4.4"></script>
+  <script src="src/round.js?v=0.4.4"></script>
+  <script src="src/match.js?v=0.4.4"></script>
+  <script src="src/cpu.js?v=0.4.4"></script>
+  <script src="src/speed.js?v=0.4.4"></script>
+  <script src="src/leaderboard.js?v=0.4.4"></script>
+  <script src="src/audio.js?v=0.4.4"></script>
+  <script src="src/renderer.js?v=0.4.4"></script>
+  <script src="src/input.js?v=0.4.4"></script>
+  <script src="src/main.js?v=0.4.4"></script>
 </body>
 </html>

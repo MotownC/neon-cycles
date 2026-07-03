@@ -4,6 +4,15 @@
   if (typeof window !== 'undefined') window[api.__name] = api;
 })(this, function () {
   const COLORS = ['#00f0ff', '#ff2bd6'];
+  const PALETTE = ['#00f0ff', '#ff2bd6', '#39ff6a', '#ff9d2b', '#fff23b', '#b06bff', '#ff3b3b', '#f2f6ff'];
+
+  // Never let the opponent land on the color the player just picked: prefer
+  // the palette's own P2 default, and only fall back further if that also
+  // collides (i.e. the player picked the default P2 color itself).
+  function pickOpponentColor(chosen, palette = PALETTE) {
+    if (palette[1] !== chosen) return palette[1];
+    return palette.find((c) => c !== chosen) || palette[0];
+  }
 
   function fit(canvas, cols, rows) {
     const dpr = window.devicePixelRatio || 1;
@@ -17,13 +26,63 @@
     return { cell, ctx };
   }
 
-  function drawGrid(ctx, cols, rows, cell) {
+  function drawGrid(ctx, cols, rows, cell, borderColor) {
     ctx.clearRect(0, 0, cols * cell, rows * cell);
     ctx.fillStyle = '#05060a';
     ctx.fillRect(0, 0, cols * cell, rows * cell);
     ctx.strokeStyle = 'rgba(60,90,140,0.12)'; ctx.lineWidth = 1;
     for (let x = 0; x <= cols; x++) { ctx.beginPath(); ctx.moveTo(x*cell, 0); ctx.lineTo(x*cell, rows*cell); ctx.stroke(); }
     for (let y = 0; y <= rows; y++) { ctx.beginPath(); ctx.moveTo(0, y*cell); ctx.lineTo(cols*cell, y*cell); ctx.stroke(); }
+    // arena boundary: the outer wall kills, so it must be unmistakable
+    ctx.save();
+    ctx.strokeStyle = borderColor; ctx.lineWidth = 2;
+    ctx.shadowColor = borderColor; ctx.shadowBlur = cell * 0.8;
+    ctx.strokeRect(1, 1, cols * cell - 2, rows * cell - 2);
+    ctx.restore();
+  }
+
+  const ANGLES = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+
+  // Top-down light cycle at the head cell, nose pointing along travel direction.
+  function drawCycle(ctx, snake, color, cell) {
+    const head = snake.body[snake.body.length - 1];
+    ctx.save();
+    ctx.translate((head.x + 0.5) * cell, (head.y + 0.5) * cell);
+    ctx.rotate(ANGLES[snake.direction]);
+    ctx.shadowColor = color; ctx.shadowBlur = cell * 1.4;
+    ctx.fillStyle = '#ffffff';
+    // front wheel, protruding past the fairing
+    ctx.fillRect(cell * 0.34, -cell * 0.09, cell * 0.32, cell * 0.18);
+    // rear wheel, wider
+    ctx.fillRect(-cell * 0.66, -cell * 0.13, cell * 0.3, cell * 0.26);
+    // fairing: widest at the rider, tapering toward both wheels
+    ctx.beginPath();
+    ctx.moveTo(cell * 0.4, 0);
+    ctx.lineTo(cell * 0.05, -cell * 0.3);
+    ctx.lineTo(-cell * 0.42, -cell * 0.24);
+    ctx.lineTo(-cell * 0.42, cell * 0.24);
+    ctx.lineTo(cell * 0.05, cell * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // dark cockpit slit
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#05060a';
+    ctx.fillRect(-cell * 0.22, -cell * 0.08, cell * 0.34, cell * 0.16);
+    ctx.restore();
+  }
+
+  function drawWalls(ctx, walls, cell, borderColor) {
+    if (!walls || !walls.length) return;
+    ctx.save();
+    ctx.fillStyle = borderColor;
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = borderColor; ctx.lineWidth = 1;
+    ctx.shadowColor = borderColor; ctx.shadowBlur = cell * 0.5;
+    for (const c of walls) {
+      ctx.fillRect(c.x * cell + 1, c.y * cell + 1, cell - 2, cell - 2);
+      ctx.strokeRect(c.x * cell + 1.5, c.y * cell + 1.5, cell - 3, cell - 3);
+    }
+    ctx.restore();
   }
 
   function drawSnake(ctx, snake, color, cell) {
@@ -33,18 +92,22 @@
     for (const c of snake.body) {
       ctx.fillRect(c.x * cell + 1, c.y * cell + 1, cell - 2, cell - 2);
     }
-    // brighter head
-    const head = snake.body[snake.body.length - 1];
-    ctx.shadowBlur = cell * 1.4; ctx.fillStyle = '#ffffff';
-    ctx.fillRect(head.x * cell + cell*0.2, head.y * cell + cell*0.2, cell*0.6, cell*0.6);
     ctx.restore();
+    drawCycle(ctx, snake, color, cell);
   }
 
-  function render(ctx, round, cell) {
+  // Generate a vivid random HSL color suitable for neon borders/walls.
+  function randomBorderColor() {
+    const h = Math.floor(Math.random() * 360);
+    return `hsl(${h}, 100%, 55%)`;
+  }
+
+  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a') {
     const { board, snakes } = round;
-    drawGrid(ctx, board.width, board.height, cell);
-    snakes.forEach((s, i) => drawSnake(ctx, s, COLORS[i], cell));
+    drawGrid(ctx, board.width, board.height, cell, borderColor);
+    drawWalls(ctx, board.walls, cell, borderColor);
+    snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell));
   }
 
-  return { __name: 'Renderer', COLORS, fit, drawGrid, drawSnake, render };
+  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fit, drawGrid, drawWalls, drawSnake, render };
 });

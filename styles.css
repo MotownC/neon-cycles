@@ -9,7 +9,8 @@ html, body {
   color: #eaf6ff; font-family: "Trebuchet MS", "Segoe UI", sans-serif;
   overflow: hidden;
 }
-#stage { position: relative; width: 100vw; height: 100vh; }
+#stage { position: relative; width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center; }
 #game { display: block; width: 100%; height: 100%; }
 
 @keyframes crash-shake {
@@ -53,6 +54,35 @@ html, body {
 .neon-btn:hover { transform: scale(1.04); }
 .neon-btn.magenta { border-color: var(--magenta); text-shadow: 0 0 6px var(--magenta);
   box-shadow: 0 0 12px rgba(255,43,214,0.35) inset, 0 0 12px rgba(255,43,214,0.35); }
+
+.wall-toggle, .turbo-toggle { display: flex; align-items: center; gap: 10px; }
+.wall-toggle .hint, .turbo-toggle .hint { opacity: .5; font-size: 13px; }
+.wall-btn {
+  cursor: pointer; background: transparent; color: #eaf6ff; opacity: .55;
+  border: 1px solid rgba(234,246,255,0.35); border-radius: 6px;
+  padding: 6px 14px; font-size: 13px; letter-spacing: 1px;
+  transition: opacity .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.wall-btn:hover { opacity: .85; }
+.wall-btn.active {
+  opacity: 1; border-color: var(--cyan); color: #fff;
+  text-shadow: 0 0 6px var(--cyan);
+  box-shadow: 0 0 10px rgba(0,240,255,0.35) inset, 0 0 10px rgba(0,240,255,0.35);
+}
+
+.color-toggle { display: flex; align-items: center; gap: 10px; }
+.color-toggle .hint { opacity: .5; font-size: 13px; }
+.color-swatch {
+  cursor: pointer; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--swatch); border: 2px solid transparent;
+  box-shadow: 0 0 6px var(--swatch);
+  transition: transform .1s ease, border-color .15s ease;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 10px var(--swatch), 0 0 12px var(--swatch);
+}
 
 .leaderboard { min-width: 260px; font-variant-numeric: tabular-nums; }
 .leaderboard .row { display: flex; justify-content: space-between; padding: 2px 8px; opacity: .9; }

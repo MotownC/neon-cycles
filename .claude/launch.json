@@ -4,7 +4,10 @@
     {
       "name": "neon-cycles-static",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8734"],
+      "runtimeArgs": [
+        "-c",
+        "from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer\nclass H(SimpleHTTPRequestHandler):\n    def end_headers(self):\n        self.send_header('Cache-Control', 'no-store')\n        super().end_headers()\nThreadingHTTPServer(('', 8734), H).serve_forever()"
+      ],
       "port": 8734
     }
   ]

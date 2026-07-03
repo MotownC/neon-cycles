@@ -10,6 +10,7 @@
     right: { x: 1, y: 0 },
   };
   const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  const CLOCKWISE = ['up', 'right', 'down', 'left'];
 
   function vector(dir) { return { ...VECTORS[dir] }; }
   function opposite(dir) { return OPPOSITE[dir]; }
@@ -18,6 +19,8 @@
     const v = VECTORS[dir];
     return { x: cell.x + v.x, y: cell.y + v.y };
   }
+  function rightOf(dir) { return CLOCKWISE[(CLOCKWISE.indexOf(dir) + 1) % 4]; }
+  function leftOf(dir) { return CLOCKWISE[(CLOCKWISE.indexOf(dir) + 3) % 4]; }
 
-  return { __name: 'Geometry', vector, opposite, isReversal, nextHead };
+  return { __name: 'Geometry', vector, opposite, isReversal, nextHead, leftOf, rightOf };
 });

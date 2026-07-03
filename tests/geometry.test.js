@@ -22,3 +22,12 @@ test('isReversal detects 180-degree turns', () => {
 test('nextHead advances a cell by one step', () => {
   assert.deepStrictEqual(G.nextHead({ x: 3, y: 3 }, 'right'), { x: 4, y: 3 });
 });
+
+test('rightOf and leftOf turn 90 degrees clockwise/counter-clockwise', () => {
+  assert.strictEqual(G.rightOf('up'), 'right');
+  assert.strictEqual(G.rightOf('right'), 'down');
+  assert.strictEqual(G.rightOf('down'), 'left');
+  assert.strictEqual(G.rightOf('left'), 'up');
+  assert.strictEqual(G.leftOf('up'), 'left');
+  assert.strictEqual(G.leftOf('left'), 'down');
+});

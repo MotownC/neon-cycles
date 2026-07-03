@@ -6,8 +6,8 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
 })(this, function ({ S, B, G }) {
-  function createRound(width, height, specs) {
-    const board = B.createBoard(width, height);
+  function createRound(width, height, specs, walls = []) {
+    const board = B.createBoard(width, height, walls);
     const snakes = specs.map((s) => S.createSnake(s.start, s.direction));
     snakes.forEach((snake) => B.light(board, snake.body[0]));
     return { board, snakes, over: false, winnerIndex: null };
@@ -15,9 +15,9 @@
 
   function tick(round) {
     const { board, snakes } = round;
-    // 1. Compute intended next head for each living snake.
+    // 1. Consume one buffered turn and compute each living snake's next head.
     const intended = snakes.map((snake) =>
-      snake.alive ? G.nextHead(snake.body[snake.body.length - 1], snake.pendingDirection) : null
+      snake.alive ? G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake)) : null
     );
 
     // 2. Kill snakes colliding with board/edge/existing trail.
@@ -62,5 +62,26 @@
     }
   }
 
-  return { __name: 'Round', createRound, tick, resolve };
+  // Advance a single snake (used for turbo bonus ticks).
+  // Collision is checked for this snake only; the other snake doesn't move.
+  function tickSingle(round, index) {
+    const { board, snakes } = round;
+    const snake = snakes[index];
+    if (!snake || !snake.alive) return;
+    const head = G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake));
+    if (B.wouldCollide(board, head)) { snake.alive = false; resolve(round); return; }
+    // Also check collision with other snakes' current trails
+    for (let j = 0; j < snakes.length; j++) {
+      if (j === index) continue;
+      if (snakes[j].body.some((c) => c.x === head.x && c.y === head.y)) {
+        snake.alive = false; resolve(round); return;
+      }
+    }
+    snake.direction = snake.pendingDirection;
+    snake.body.push(head);
+    B.light(board, head);
+    resolve(round);
+  }
+
+  return { __name: 'Round', createRound, tick, tickSingle, resolve };
 });

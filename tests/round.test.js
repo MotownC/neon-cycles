@@ -1,6 +1,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 const R = require('../src/round');
+const S = require('../src/snake');
 
 function setup(width, height, specs) {
   // specs: [{start, direction}] -> round state
@@ -31,6 +32,16 @@ test('head-on into the same empty cell kills both (draw)', () => {
   assert.strictEqual(round.snakes[0].alive, false);
   assert.strictEqual(round.snakes[1].alive, false);
   assert.strictEqual(round.winnerIndex, null); // draw
+});
+
+test('tick consumes one buffered direction per tick', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  S.bufferDirection(round.snakes[0], 'up');
+  S.bufferDirection(round.snakes[0], 'left');
+  R.tick(round);
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 5, y: 4 });
+  R.tick(round);
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 4, y: 4 });
 });
 
 test('last snake alive wins the round', () => {
