@@ -20,9 +20,19 @@
     return Math.max(0, earned - firedCount);
   }
 
+  function advanceBolts(round, elapsedSec) {
+    const { board } = round;
+    round.bolts = round.bolts.filter((bolt) => {
+      const next = G.nextHead(bolt.pos, bolt.dir);
+      if (!B.inBounds(board, next)) return false; // despawn at the boundary
+      bolt.pos = next;
+      return true;
+    });
+  }
+
   return {
     __name: 'Projectile',
     REGEN_SEC, AMMO_CAP, GAP_CELLS, STUN_SEC,
-    createBolt, ammoAvailable,
+    createBolt, ammoAvailable, advanceBolts,
   };
 });

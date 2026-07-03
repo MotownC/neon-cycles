@@ -1,6 +1,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 const P = require('../src/projectile');
+const B = require('../src/board');
 
 test('createBolt spawns one cell ahead of the head in the travel direction', () => {
   const bolt = P.createBolt(0, { x: 5, y: 5 }, 'right');
@@ -30,4 +31,17 @@ test('ammoAvailable caps at 3 no matter how long the round runs', () => {
 test('ammoAvailable subtracts bolts already fired', () => {
   assert.strictEqual(P.ammoAvailable(30, 2), 1);
   assert.strictEqual(P.ammoAvailable(0, 1), 0);
+});
+
+test('advanceBolts moves a bolt one cell forward through open space', () => {
+  const round = { board: B.createBoard(10, 10), bolts: [P.createBolt(0, { x: 5, y: 5 }, 'right')], snakes: [] };
+  P.advanceBolts(round, 0);
+  assert.strictEqual(round.bolts.length, 1);
+  assert.deepStrictEqual(round.bolts[0].pos, { x: 7, y: 5 });
+});
+
+test('advanceBolts despawns a bolt that would leave the board', () => {
+  const round = { board: B.createBoard(10, 10), bolts: [{ ownerIndex: 0, pos: { x: 9, y: 5 }, dir: 'right' }], snakes: [] };
+  P.advanceBolts(round, 0);
+  assert.strictEqual(round.bolts.length, 0);
 });
