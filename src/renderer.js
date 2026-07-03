@@ -1,10 +1,23 @@
 (function (root, factory) {
-  const api = factory();
+  const deps = typeof require === 'function'
+    ? { T: require('./trail') }
+    : { T: window.Trail };
+  const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function () {
+})(this, function ({ T }) {
   const COLORS = ['#00f0ff', '#ff2bd6'];
   const PALETTE = ['#00f0ff', '#ff2bd6', '#39ff6a', '#ff9d2b', '#fff23b', '#b06bff', '#ff3b3b', '#f2f6ff'];
+
+  // 1.0 until the last telegraphSeconds of life, then linearly down to a
+  // dim floor so an about-to-vanish cell is never fully invisible mid-fade.
+  function fadeAlpha(age, fadeSeconds, telegraphSeconds = 1.5, floor = 0.15) {
+    const remaining = fadeSeconds - age;
+    if (remaining >= telegraphSeconds) return 1;
+    if (remaining <= 0) return floor;
+    const p = remaining / telegraphSeconds;
+    return floor + (1 - floor) * p;
+  }
 
   // Never let the opponent land on the color the player just picked: prefer
   // the palette's own P2 default, and only fall back further if that also
@@ -85,11 +98,12 @@
     ctx.restore();
   }
 
-  function drawSnake(ctx, snake, color, cell) {
+  function drawSnake(ctx, snake, color, cell, trailMode, elapsedSec) {
     ctx.save();
     ctx.shadowColor = color; ctx.shadowBlur = cell * 0.9;
     ctx.fillStyle = color;
     for (const c of snake.body) {
+      if (trailMode === 'fade') ctx.globalAlpha = fadeAlpha(elapsedSec - c.t, T.FADE_SECONDS);
       ctx.fillRect(c.x * cell + 1, c.y * cell + 1, cell - 2, cell - 2);
     }
     ctx.restore();
@@ -102,12 +116,12 @@
     return `hsl(${h}, 100%, 55%)`;
   }
 
-  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a') {
+  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0) {
     const { board, snakes } = round;
     drawGrid(ctx, board.width, board.height, cell, borderColor);
     drawWalls(ctx, board.walls, cell, borderColor);
-    snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell));
+    snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell, round.trailMode, elapsedSec));
   }
 
-  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fit, drawGrid, drawWalls, drawSnake, render };
+  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fadeAlpha, fit, drawGrid, drawWalls, drawSnake, render };
 });
