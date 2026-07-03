@@ -76,12 +76,13 @@ test('a wall cell is cut exactly like a trail cell (same lit Set)', () => {
 
 test('advanceBolts stuns a snake hit directly in the head instead of cutting a gap', () => {
   const board = B.createBoard(10, 10);
+  B.light(board, { x: 6, y: 5 }); // cell is lit too — proves stun is checked first, not just "happens to be unlit"
   const victim = { alive: true, body: [{ x: 6, y: 5, t: 0 }] };
   const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 5, y: 5 }, dir: 'right' }], snakes: [victim] };
   P.advanceBolts(round, 10);
   assert.strictEqual(round.bolts.length, 0);
   assert.strictEqual(victim.stunnedUntil, 12);
-  assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), false); // head cell was never lit; no gap side effect
+  assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), true); // gap-cut did NOT run; cell stays lit
 });
 
 test('advanceBolts ignores dead snakes when checking for a head hit', () => {
