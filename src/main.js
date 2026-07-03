@@ -20,7 +20,7 @@
 
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
-    elapsed: 0, acc: 0, last: 0, raf: null, wallDensity: 'none',
+    elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
     trailMode: 'tron',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
@@ -47,7 +47,7 @@
     state.round = Round.createRound(COLS, ROWS, specs, walls, state.trailMode);
     state.colors = [state.playerColor, Renderer.pickOpponentColor(state.playerColor)];
     state.borderColor = Renderer.randomBorderColor();
-    state.elapsed = 0; state.acc = 0; state.last = performance.now();
+    state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
     state.turbo = [freshTurbo(), freshTurbo()];
     const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
   }
@@ -76,14 +76,20 @@
     return ` <span style="color:${color};opacity:0.6;font-size:14px">⚡${pct}%</span>`;
   }
 
+  function ammoTag(index, color) {
+    const available = Projectile.ammoAvailable(state.elapsed, state.round.firedCount[index]);
+    const pips = '●'.repeat(available) + '○'.repeat(Projectile.AMMO_CAP - available);
+    return ` <span style="color:${color};opacity:0.7;font-size:14px">${pips}</span>`;
+  }
+
   function updateHud() {
     const [c0, c1] = state.colors;
     const [t0, t1] = state.turbo;
-    if (state.mode === '1p') hud.innerHTML = `<span style="color:${c0}">TIME ${state.elapsed.toFixed(1)}s${turboTag(t0, c0)}</span>`;
-    else if (state.mode === 'cpu') hud.innerHTML = `<span style="color:${c0}">YOU ${state.match.scores[0]}${turboTag(t0, c0)}</span>`
-      + `<span style="color:${c1}">CPU ${state.match.scores[1]}${turboTag(t1, c1)}</span>`;
-    else hud.innerHTML = `<span style="color:${c0}">P1 ${state.match.scores[0]}${turboTag(t0, c0)}</span>`
-      + `<span style="color:${c1}">P2 ${state.match.scores[1]}${turboTag(t1, c1)}</span>`;
+    if (state.mode === '1p') hud.innerHTML = `<span style="color:${c0}">TIME ${state.elapsed.toFixed(1)}s${turboTag(t0, c0)}${ammoTag(0, c0)}</span>`;
+    else if (state.mode === 'cpu') hud.innerHTML = `<span style="color:${c0}">YOU ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}</span>`
+      + `<span style="color:${c1}">CPU ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}</span>`;
+    else hud.innerHTML = `<span style="color:${c0}">P1 ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}</span>`
+      + `<span style="color:${c1}">P2 ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}</span>`;
   }
 
   function label(index) {
@@ -191,6 +197,13 @@
     updateTurbo(dtSec);
     Audio.setIntensity(Math.min(1, state.elapsed / 45));
 
+    const boltInt = Speed.tickInterval(state.elapsed) / 3;
+    state.boltAcc += dt;
+    while (state.boltAcc >= boltInt) {
+      state.boltAcc -= boltInt;
+      Projectile.advanceBolts(state.round, state.elapsed);
+    }
+
     const normalInt = Speed.tickInterval(state.elapsed);
     const turboInt = Speed.turboInterval(state.elapsed);
 
@@ -213,7 +226,9 @@
       const snakes = state.round.snakes;
       for (let i = 0; i < snakes.length; i++) {
         if (!snakes[i].alive) continue;
-        const interval = isBoosting(i) ? turboInt : normalInt;
+        const stunned = snakes[i].stunnedUntil > state.elapsed;
+        const interval = stunned ? normalInt / Speed.TURBO_MULTIPLIER
+          : isBoosting(i) ? turboInt : normalInt;
         state.turbo[i].acc += dt;
         while (state.turbo[i].acc >= interval) {
           state.turbo[i].acc -= interval;
@@ -271,6 +286,11 @@
       // In CPU mode, ignore P2 turbo (CPU doesn't turbo)
       if (i === 1 && state.mode === 'cpu') return;
       state.turbo[i].held = pressed;
+    },
+    onFire: (i) => {
+      if (state.phase !== 'playing' || !state.round.snakes[i] || !state.round.snakes[i].alive) return;
+      if (i === 1 && state.mode === 'cpu') return; // CPU fires itself (Task 9, not this task)
+      Projectile.fire(state.round, i, state.elapsed);
     },
   });
   document.querySelectorAll('[data-mode]').forEach((btn) =>
