@@ -22,6 +22,7 @@
 
   function advanceBolts(round, elapsedSec) {
     const { board, snakes = [] } = round;
+    const outcomes = [];
     round.bolts = round.bolts.filter((bolt) => {
       const next = G.nextHead(bolt.pos, bolt.dir);
       if (!B.inBounds(board, next)) return false; // despawn at the boundary
@@ -30,7 +31,7 @@
       // path re-crosses their own head (self-stun is an accepted risk of firing).
       const victim = snakes.find((s) => s.alive
         && s.body[s.body.length - 1].x === next.x && s.body[s.body.length - 1].y === next.y);
-      if (victim) { victim.stunnedUntil = elapsedSec + STUN_SEC; return false; }
+      if (victim) { victim.stunnedUntil = elapsedSec + STUN_SEC; outcomes.push({ type: 'stun', pos: next }); return false; }
 
       if (B.isLit(board, next)) {
         let gap = next;
@@ -39,12 +40,14 @@
           B.unlight(board, gap);
           gap = G.nextHead(gap, bolt.dir);
         }
+        outcomes.push({ type: 'cut', pos: next });
         return false;
       }
 
       bolt.pos = next;
       return true;
     });
+    return outcomes;
   }
 
   function fire(round, index, elapsedSec) {

@@ -201,7 +201,8 @@
     state.boltAcc += dt;
     while (state.boltAcc >= boltInt) {
       state.boltAcc -= boltInt;
-      Projectile.advanceBolts(state.round, state.elapsed);
+      const outcomes = Projectile.advanceBolts(state.round, state.elapsed);
+      if (outcomes.length) Audio.derezSfx();
     }
 
     const normalInt = Speed.tickInterval(state.elapsed);
@@ -215,7 +216,9 @@
         if (state.mode === 'cpu' && state.round.snakes[1].alive) {
           Snake.bufferDirection(state.round.snakes[1], CPU.chooseDirection(state.round, 1));
           if (CPU.shouldFire(state.round, 1, state.elapsed)) {
+            const before = state.round.firedCount[1];
             Projectile.fire(state.round, 1, state.elapsed);
+            if (state.round.firedCount[1] !== before) Audio.fireSfx();
           }
         }
         Round.tick(state.round, state.elapsed);
@@ -238,7 +241,9 @@
           if (state.mode === 'cpu' && i === 1) {
             Snake.bufferDirection(snakes[1], CPU.chooseDirection(state.round, 1));
             if (CPU.shouldFire(state.round, 1, state.elapsed)) {
+              const before = state.round.firedCount[1];
               Projectile.fire(state.round, 1, state.elapsed);
+              if (state.round.firedCount[1] !== before) Audio.fireSfx();
             }
           }
           Round.tickSingle(state.round, i, state.elapsed);
@@ -296,7 +301,9 @@
     onFire: (i) => {
       if (state.phase !== 'playing' || !state.round.snakes[i] || !state.round.snakes[i].alive) return;
       if (i === 1 && state.mode === 'cpu') return; // CPU fires itself via CPU.shouldFire
+      const before = state.round.firedCount[i];
       Projectile.fire(state.round, i, state.elapsed);
+      if (state.round.firedCount[i] !== before) Audio.fireSfx();
     },
   });
   document.querySelectorAll('[data-mode]').forEach((btn) =>
