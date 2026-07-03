@@ -3,9 +3,9 @@ const { test } = require('node:test');
 const S = require('../src/snake');
 const G = require('../src/geometry');
 
-test('createSnake seeds a one-cell body facing a direction', () => {
+test('createSnake seeds a one-cell body facing a direction, stamped at t=0', () => {
   const s = S.createSnake({ x: 5, y: 5 }, 'right');
-  assert.deepStrictEqual(s.body, [{ x: 5, y: 5 }]);
+  assert.deepStrictEqual(s.body, [{ x: 5, y: 5, t: 0 }]);
   assert.strictEqual(s.direction, 'right');
   assert.strictEqual(s.alive, true);
 });

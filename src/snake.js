@@ -5,7 +5,7 @@
 })(this, function (G) {
   function createSnake(start, direction) {
     return {
-      body: [{ ...start }],
+      body: [{ ...start, t: 0 }],
       direction,
       pendingDirection: direction,
       queue: [],
