@@ -13,22 +13,25 @@
     return { board, snakes, over: false, winnerIndex: null, trailMode, bolts: [], firedCount: specs.map(() => 0) };
   }
 
-  function tick(round, elapsedSec = 0) {
+  function tick(round, elapsedSec = 0, frozenIndices = []) {
+    const frozen = new Set(frozenIndices);
     const { board, snakes } = round;
-    // 1. Consume one buffered turn and compute each living snake's next head.
-    const intended = snakes.map((snake) =>
-      snake.alive ? G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake)) : null
+    // 1. Consume one buffered turn and compute each living, non-frozen snake's next head.
+    //    Frozen snakes must not have S.nextDirection called on them (it pops the turn
+    //    queue), or a buffered turn would be dropped a tick early.
+    const intended = snakes.map((snake, i) =>
+      snake.alive && !frozen.has(i) ? G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake)) : null
     );
 
     // 2. Kill snakes colliding with board/edge/existing trail.
     intended.forEach((head, i) => {
-      if (!snakes[i].alive) return;
+      if (!snakes[i].alive || !head) return;
       if (B.wouldCollide(board, head)) snakes[i].alive = false;
     });
 
     // 3. Kill snakes targeting the same cell as another living snake this tick.
     intended.forEach((head, i) => {
-      if (!snakes[i].alive) return;
+      if (!snakes[i].alive || !head) return;
       for (let j = 0; j < intended.length; j++) {
         if (j === i || !snakes[j].alive) continue;
         if (intended[j] && head.x === intended[j].x && head.y === intended[j].y) {
@@ -39,9 +42,10 @@
     });
 
     // 4. Advance survivors: apply direction, append head, light the cell,
-    //    then trim the trail per the round's trail mode.
+    //    then trim the trail per the round's trail mode. Frozen snakes are
+    //    skipped entirely so they stay put for this tick.
     snakes.forEach((snake, i) => {
-      if (!snake.alive) return;
+      if (!snake.alive || frozen.has(i)) return;
       snake.direction = snake.pendingDirection;
       const head = { ...intended[i], t: elapsedSec };
       snake.body.push(head);

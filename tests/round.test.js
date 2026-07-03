@@ -87,3 +87,35 @@ test('createRound initializes empty bolts and per-snake firedCount', () => {
   assert.deepStrictEqual(round.bolts, []);
   assert.deepStrictEqual(round.firedCount, [0, 0]);
 });
+
+test('a frozen snake does not move this tick while another snake advances normally', () => {
+  const round = setup(10, 10, [
+    { start: { x: 5, y: 5 }, direction: 'right' },
+    { start: { x: 1, y: 1 }, direction: 'right' },
+  ]);
+  R.tick(round, 0, [0]); // freeze snake 0
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 5, y: 5, t: 0 });
+  assert.strictEqual(round.snakes[0].body.length, 1); // no new head appended
+  assert.deepStrictEqual(round.snakes[1].body[round.snakes[1].body.length - 1], { x: 2, y: 1, t: 0 });
+  assert.strictEqual(round.snakes[1].body.length, 2);
+});
+
+test('a frozen snake does not consume its buffered direction queue', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  S.bufferDirection(round.snakes[0], 'up');
+  R.tick(round, 0, [0]); // freeze snake 0
+  assert.deepStrictEqual(round.snakes[0].queue, ['up']); // still buffered, not popped
+  assert.strictEqual(round.snakes[0].body.length, 1); // did not move
+});
+
+test('tick with no frozenIndices argument behaves exactly as before (regression)', () => {
+  const round = setup(10, 10, [
+    { start: { x: 5, y: 5 }, direction: 'right' },
+    { start: { x: 1, y: 1 }, direction: 'right' },
+  ]);
+  R.tick(round, 0);
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 6, y: 5, t: 0 });
+  assert.deepStrictEqual(round.snakes[1].body[round.snakes[1].body.length - 1], { x: 2, y: 1, t: 0 });
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[1].alive, true);
+});

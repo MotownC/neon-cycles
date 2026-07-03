@@ -221,7 +221,10 @@
             if (state.round.firedCount[1] !== before) Audio.fireSfx();
           }
         }
-        Round.tick(state.round, state.elapsed);
+        const frozen = state.round.snakes
+          .map((s, i) => (s.stunnedUntil > state.elapsed ? i : -1))
+          .filter((i) => i >= 0);
+        Round.tick(state.round, state.elapsed, frozen);
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
