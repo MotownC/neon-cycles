@@ -81,3 +81,9 @@ test('fade mode unlights trail cells once they expire', () => {
   assert.strictEqual(B.isLit(round.board, { x: 5, y: 5 }), false);
   assert.strictEqual(B.isLit(round.board, { x: 6, y: 5 }), true);
 });
+
+test('createRound initializes empty bolts and per-snake firedCount', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }, { start: { x: 6, y: 5 }, direction: 'left' }]);
+  assert.deepStrictEqual(round.bolts, []);
+  assert.deepStrictEqual(round.firedCount, [0, 0]);
+});
