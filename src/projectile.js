@@ -21,10 +21,25 @@
   }
 
   function advanceBolts(round, elapsedSec) {
-    const { board } = round;
+    const { board, snakes = [] } = round;
     round.bolts = round.bolts.filter((bolt) => {
       const next = G.nextHead(bolt.pos, bolt.dir);
       if (!B.inBounds(board, next)) return false; // despawn at the boundary
+
+      const victim = snakes.find((s) => s.alive
+        && s.body[s.body.length - 1].x === next.x && s.body[s.body.length - 1].y === next.y);
+      if (victim) { victim.stunnedUntil = elapsedSec + STUN_SEC; return false; }
+
+      if (B.isLit(board, next)) {
+        let gap = next;
+        for (let i = 0; i < GAP_CELLS; i++) {
+          if (!B.inBounds(board, gap)) break;
+          B.unlight(board, gap);
+          gap = G.nextHead(gap, bolt.dir);
+        }
+        return false;
+      }
+
       bolt.pos = next;
       return true;
     });

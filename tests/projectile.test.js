@@ -45,3 +45,31 @@ test('advanceBolts despawns a bolt that would leave the board', () => {
   P.advanceBolts(round, 0);
   assert.strictEqual(round.bolts.length, 0);
 });
+
+test('advanceBolts cuts a 3-cell gap starting at a lit cell it hits', () => {
+  const board = B.createBoard(10, 10);
+  [{ x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 }].forEach((c) => B.light(board, c));
+  const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 5, y: 5 }, dir: 'right' }], snakes: [] };
+  P.advanceBolts(round, 0);
+  assert.strictEqual(round.bolts.length, 0); // consumed on impact
+  assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), false);
+  assert.strictEqual(B.isLit(board, { x: 7, y: 5 }), false);
+  assert.strictEqual(B.isLit(board, { x: 8, y: 5 }), false);
+  assert.strictEqual(B.isLit(board, { x: 9, y: 5 }), true); // beyond the 3-cell gap
+});
+
+test('advanceBolts clips the gap at the board edge instead of erroring', () => {
+  const board = B.createBoard(10, 10);
+  [{ x: 8, y: 5 }, { x: 9, y: 5 }].forEach((c) => B.light(board, c));
+  const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 7, y: 5 }, dir: 'right' }], snakes: [] };
+  P.advanceBolts(round, 0);
+  assert.strictEqual(B.isLit(board, { x: 8, y: 5 }), false);
+  assert.strictEqual(B.isLit(board, { x: 9, y: 5 }), false);
+});
+
+test('a wall cell is cut exactly like a trail cell (same lit Set)', () => {
+  const board = B.createBoard(10, 10, [{ x: 6, y: 5 }]);
+  const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 5, y: 5 }, dir: 'right' }], snakes: [] };
+  P.advanceBolts(round, 0);
+  assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), false);
+});
