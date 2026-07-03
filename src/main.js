@@ -214,6 +214,9 @@
         state.acc -= normalInt;
         if (state.mode === 'cpu' && state.round.snakes[1].alive) {
           Snake.bufferDirection(state.round.snakes[1], CPU.chooseDirection(state.round, 1));
+          if (CPU.shouldFire(state.round, 1, state.elapsed)) {
+            Projectile.fire(state.round, 1, state.elapsed);
+          }
         }
         Round.tick(state.round, state.elapsed);
         tr({ t: now | 0,
@@ -234,6 +237,9 @@
           state.turbo[i].acc -= interval;
           if (state.mode === 'cpu' && i === 1) {
             Snake.bufferDirection(snakes[1], CPU.chooseDirection(state.round, 1));
+            if (CPU.shouldFire(state.round, 1, state.elapsed)) {
+              Projectile.fire(state.round, 1, state.elapsed);
+            }
           }
           Round.tickSingle(state.round, i, state.elapsed);
           if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed); return endRound(); }
@@ -289,7 +295,7 @@
     },
     onFire: (i) => {
       if (state.phase !== 'playing' || !state.round.snakes[i] || !state.round.snakes[i].alive) return;
-      if (i === 1 && state.mode === 'cpu') return; // CPU fires itself (Task 9, not this task)
+      if (i === 1 && state.mode === 'cpu') return; // CPU fires itself via CPU.shouldFire
       Projectile.fire(state.round, i, state.elapsed);
     },
   });
