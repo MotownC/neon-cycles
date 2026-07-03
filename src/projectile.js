@@ -26,6 +26,8 @@
       const next = G.nextHead(bolt.pos, bolt.dir);
       if (!B.inBounds(board, next)) return false; // despawn at the boundary
 
+      // No owner exclusion: a bolt can stun its own firer if its path crosses
+      // back over their head later (self-stun is an accepted risk of firing).
       const victim = snakes.find((s) => s.alive
         && s.body[s.body.length - 1].x === next.x && s.body[s.body.length - 1].y === next.y);
       if (victim) { victim.stunnedUntil = elapsedSec + STUN_SEC; return false; }

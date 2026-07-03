@@ -73,3 +73,22 @@ test('a wall cell is cut exactly like a trail cell (same lit Set)', () => {
   P.advanceBolts(round, 0);
   assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), false);
 });
+
+test('advanceBolts stuns a snake hit directly in the head instead of cutting a gap', () => {
+  const board = B.createBoard(10, 10);
+  const victim = { alive: true, body: [{ x: 6, y: 5, t: 0 }] };
+  const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 5, y: 5 }, dir: 'right' }], snakes: [victim] };
+  P.advanceBolts(round, 10);
+  assert.strictEqual(round.bolts.length, 0);
+  assert.strictEqual(victim.stunnedUntil, 12);
+  assert.strictEqual(B.isLit(board, { x: 6, y: 5 }), false); // head cell was never lit; no gap side effect
+});
+
+test('advanceBolts ignores dead snakes when checking for a head hit', () => {
+  const board = B.createBoard(10, 10);
+  const victim = { alive: false, body: [{ x: 6, y: 5, t: 0 }] };
+  const round = { board, bolts: [{ ownerIndex: 0, pos: { x: 5, y: 5 }, dir: 'right' }], snakes: [victim] };
+  P.advanceBolts(round, 10);
+  assert.strictEqual(round.bolts.length, 1); // passed through the empty (unlit) cell
+  assert.strictEqual(victim.stunnedUntil, undefined);
+});
