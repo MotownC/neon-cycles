@@ -12,6 +12,14 @@ clipped to the board. A bolt that hits a living snake's head directly stuns
 that snake (slows its ticking for 2s) instead of cutting a gap. Ammo is scarce:
 1 bolt to start, +1 every 15s survived, capped at 3.
 
+Stun's implementation differs slightly by turbo setting: in turbo mode (per-snake
+tick accumulators) a stunned snake ticks at a slower but nonzero rate; in the
+default non-turbo mode (shared tick accumulator) a stunned snake fully freezes
+for the 2s duration instead, since the shared-tick model can't express a
+sub-interval slowdown. Both are meaningfully "you're an easy target for 2s" —
+the non-turbo freeze is simply the harsher of the two, and that's accepted as
+the natural translation of the mechanic into that ticking model.
+
 In 1P Survival (no opponent), the mechanic still applies: the only cuttable
 target is the player's own trail/walls, giving a way to carve an escape from a
 self-boxed corner.
