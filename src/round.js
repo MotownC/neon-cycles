@@ -1,19 +1,19 @@
 (function (root, factory) {
   const deps = typeof require === 'function'
-    ? { S: require('./snake'), B: require('./board'), G: require('./geometry') }
-    : { S: window.Snake, B: window.Board, G: window.Geometry };
+    ? { S: require('./snake'), B: require('./board'), G: require('./geometry'), T: require('./trail') }
+    : { S: window.Snake, B: window.Board, G: window.Geometry, T: window.Trail };
   const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function ({ S, B, G }) {
-  function createRound(width, height, specs, walls = []) {
+})(this, function ({ S, B, G, T }) {
+  function createRound(width, height, specs, walls = [], trailMode = 'tron') {
     const board = B.createBoard(width, height, walls);
     const snakes = specs.map((s) => S.createSnake(s.start, s.direction));
     snakes.forEach((snake) => B.light(board, snake.body[0]));
-    return { board, snakes, over: false, winnerIndex: null };
+    return { board, snakes, over: false, winnerIndex: null, trailMode };
   }
 
-  function tick(round) {
+  function tick(round, elapsedSec = 0) {
     const { board, snakes } = round;
     // 1. Consume one buffered turn and compute each living snake's next head.
     const intended = snakes.map((snake) =>
@@ -38,12 +38,15 @@
       }
     });
 
-    // 4. Advance survivors: apply direction, append head, light the cell.
+    // 4. Advance survivors: apply direction, append head, light the cell,
+    //    then trim the trail per the round's trail mode.
     snakes.forEach((snake, i) => {
       if (!snake.alive) return;
       snake.direction = snake.pendingDirection;
-      snake.body.push(intended[i]);
-      B.light(board, intended[i]);
+      const head = { ...intended[i], t: elapsedSec };
+      snake.body.push(head);
+      B.light(board, head);
+      T.trim(snake, board, round.trailMode, elapsedSec);
     });
 
     resolve(round);
@@ -64,22 +67,24 @@
 
   // Advance a single snake (used for turbo bonus ticks).
   // Collision is checked for this snake only; the other snake doesn't move.
-  function tickSingle(round, index) {
+  function tickSingle(round, index, elapsedSec = 0) {
     const { board, snakes } = round;
     const snake = snakes[index];
     if (!snake || !snake.alive) return;
-    const head = G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake));
-    if (B.wouldCollide(board, head)) { snake.alive = false; resolve(round); return; }
+    const nextHead = G.nextHead(snake.body[snake.body.length - 1], S.nextDirection(snake));
+    if (B.wouldCollide(board, nextHead)) { snake.alive = false; resolve(round); return; }
     // Also check collision with other snakes' current trails
     for (let j = 0; j < snakes.length; j++) {
       if (j === index) continue;
-      if (snakes[j].body.some((c) => c.x === head.x && c.y === head.y)) {
+      if (snakes[j].body.some((c) => c.x === nextHead.x && c.y === nextHead.y)) {
         snake.alive = false; resolve(round); return;
       }
     }
     snake.direction = snake.pendingDirection;
+    const head = { ...nextHead, t: elapsedSec };
     snake.body.push(head);
     B.light(board, head);
+    T.trim(snake, board, round.trailMode, elapsedSec);
     resolve(round);
   }
 
