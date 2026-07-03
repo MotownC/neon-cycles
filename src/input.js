@@ -15,6 +15,8 @@
       else if (e.code === 'Enter' || e.code === 'Space') { handlers.onAction(); e.preventDefault(); }
       else if (e.code === 'ShiftRight' && handlers.onTurbo) { handlers.onTurbo(0, true); e.preventDefault(); }
       else if (e.code === 'ShiftLeft' && handlers.onTurbo) { handlers.onTurbo(1, true); e.preventDefault(); }
+      else if (e.code === 'Slash' && handlers.onFire) { handlers.onFire(0); e.preventDefault(); }
+      else if (e.code === 'KeyQ' && handlers.onFire) { handlers.onFire(1); e.preventDefault(); }
     });
     window.addEventListener('keyup', (e) => {
       if (e.code === 'ShiftRight' && handlers.onTurbo) { handlers.onTurbo(0, false); e.preventDefault(); }

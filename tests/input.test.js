@@ -30,3 +30,18 @@ test('ignores held-key autorepeat events', () => {
   assert.deepStrictEqual(dirs, []);
   assert.strictEqual(actions, 0);
 });
+
+test('forwards fire keys to onFire for each player', () => {
+  const fires = [];
+  Input.attach({ onDirection: () => {}, onAction: () => {}, onFire: (i) => fires.push(i) });
+  press('Slash');
+  press('KeyQ');
+  assert.deepStrictEqual(fires, [0, 1]);
+});
+
+test('ignores held-key autorepeat for fire keys', () => {
+  const fires = [];
+  Input.attach({ onDirection: () => {}, onAction: () => {}, onFire: (i) => fires.push(i) });
+  press('Slash', true);
+  assert.deepStrictEqual(fires, []);
+});
