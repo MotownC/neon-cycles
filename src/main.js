@@ -21,6 +21,7 @@
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, last: 0, raf: null, wallDensity: 'none',
+    trailMode: 'tron',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
     turboEnabled: false,
@@ -43,7 +44,7 @@
       : [{ start: { x: (COLS*0.25)|0, y: (ROWS/2)|0 }, direction: 'right' },
          { start: { x: (COLS*0.75)|0, y: (ROWS/2)|0 }, direction: 'left' }];
     const walls = Walls.generate(COLS, ROWS, state.wallDensity);
-    state.round = Round.createRound(COLS, ROWS, specs, walls);
+    state.round = Round.createRound(COLS, ROWS, specs, walls, state.trailMode);
     state.colors = [state.playerColor, Renderer.pickOpponentColor(state.playerColor)];
     state.borderColor = Renderer.randomBorderColor();
     state.elapsed = 0; state.acc = 0; state.last = performance.now();
@@ -201,11 +202,11 @@
         if (state.mode === 'cpu' && state.round.snakes[1].alive) {
           Snake.bufferDirection(state.round.snakes[1], CPU.chooseDirection(state.round, 1));
         }
-        Round.tick(state.round);
+        Round.tick(state.round, state.elapsed);
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
-        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor); return endRound(); }
+        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed); return endRound(); }
       }
     } else {
       // Per-snake tick: each snake has its own interval based on boost state
@@ -219,14 +220,14 @@
           if (state.mode === 'cpu' && i === 1) {
             Snake.bufferDirection(snakes[1], CPU.chooseDirection(state.round, 1));
           }
-          Round.tickSingle(state.round, i);
-          if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor); return endRound(); }
+          Round.tickSingle(state.round, i, state.elapsed);
+          if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed); return endRound(); }
         }
       }
     }
 
     updateHud();
-    Renderer.render(ctx, state.round, cell, state.colors, state.borderColor);
+    Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed);
   }
 
   function beginGame(mode) {
@@ -286,6 +287,12 @@
   turboButtons.forEach((btn) => btn.addEventListener('click', () => {
     state.turboEnabled = btn.dataset.turbo === 'on';
     turboButtons.forEach((b) => b.classList.toggle('active', b === btn));
+  }));
+
+  const trailButtons = document.querySelectorAll('[data-trail]');
+  trailButtons.forEach((btn) => btn.addEventListener('click', () => {
+    state.trailMode = btn.dataset.trail;
+    trailButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
   const colorToggle = el('color-toggle');
