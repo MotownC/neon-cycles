@@ -47,9 +47,18 @@
     });
   }
 
+  function fire(round, index, elapsedSec) {
+    const available = ammoAvailable(elapsedSec, round.firedCount[index]);
+    if (available <= 0) return;
+    const snake = round.snakes[index];
+    const head = snake.body[snake.body.length - 1];
+    round.bolts.push(createBolt(index, head, snake.direction));
+    round.firedCount[index] += 1;
+  }
+
   return {
     __name: 'Projectile',
     REGEN_SEC, AMMO_CAP, GAP_CELLS, STUN_SEC,
-    createBolt, ammoAvailable, advanceBolts,
+    createBolt, ammoAvailable, advanceBolts, fire,
   };
 });

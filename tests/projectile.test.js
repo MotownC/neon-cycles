@@ -93,3 +93,27 @@ test('advanceBolts ignores dead snakes when checking for a head hit', () => {
   assert.strictEqual(round.bolts.length, 1); // passed through the empty (unlit) cell
   assert.strictEqual(victim.stunnedUntil, undefined);
 });
+
+test('fire pushes a bolt and increments firedCount when ammo is available', () => {
+  const round = {
+    board: B.createBoard(10, 10),
+    bolts: [],
+    firedCount: [0],
+    snakes: [{ alive: true, body: [{ x: 5, y: 5, t: 0 }], direction: 'right' }],
+  };
+  P.fire(round, 0, 0);
+  assert.strictEqual(round.bolts.length, 1);
+  assert.strictEqual(round.firedCount[0], 1);
+});
+
+test('fire is a no-op when ammo is exhausted', () => {
+  const round = {
+    board: B.createBoard(10, 10),
+    bolts: [],
+    firedCount: [1], // already spent the starting bolt
+    snakes: [{ alive: true, body: [{ x: 5, y: 5, t: 0 }], direction: 'right' }],
+  };
+  P.fire(round, 0, 5); // elapsedSec=5, still under the 15s regen mark
+  assert.strictEqual(round.bolts.length, 0);
+  assert.strictEqual(round.firedCount[0], 1);
+});
