@@ -2,6 +2,7 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 const R = require('../src/round');
 const CPU = require('../src/cpu');
+const P = require('../src/projectile');
 
 test('avoids a wall directly ahead', () => {
   const round = R.createRound(5, 5, [{ start: { x: 4, y: 2 }, direction: 'right' }]);
@@ -63,6 +64,24 @@ test('sidesteps an imminent head-on trade', () => {
   // tick — a mutual kill. The CPU should swerve instead of trading.
   const dir = CPU.chooseDirection(round, 0, () => 0);
   assert.notStrictEqual(dir, 'right');
+});
+
+test('fires when boxed in with ammo available', () => {
+  const round = R.createRound(5, 5, [{ start: { x: 2, y: 2 }, direction: 'right' }]);
+  round.board.lit.add('3,2'); // straight
+  round.board.lit.add('2,1'); // left turn
+  round.board.lit.add('2,3'); // right turn
+  round.firedCount = [0];
+  assert.strictEqual(CPU.shouldFire(round, 0, 0), true);
+});
+
+test('does not fire when boxed in but ammo is exhausted', () => {
+  const round = R.createRound(5, 5, [{ start: { x: 2, y: 2 }, direction: 'right' }]);
+  round.board.lit.add('3,2'); // straight
+  round.board.lit.add('2,1'); // left turn
+  round.board.lit.add('2,3'); // right turn
+  round.firedCount = [P.AMMO_CAP];
+  assert.strictEqual(CPU.shouldFire(round, 0, 0), false);
 });
 
 test('favors sealing the opponent into a room over grazing past it', () => {

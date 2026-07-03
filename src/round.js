@@ -10,7 +10,7 @@
     const board = B.createBoard(width, height, walls);
     const snakes = specs.map((s) => S.createSnake(s.start, s.direction));
     snakes.forEach((snake) => B.light(board, snake.body[0]));
-    return { board, snakes, over: false, winnerIndex: null, trailMode };
+    return { board, snakes, over: false, winnerIndex: null, trailMode, bolts: [], firedCount: specs.map(() => 0) };
   }
 
   function tick(round, elapsedSec = 0) {

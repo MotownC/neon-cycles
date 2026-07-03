@@ -98,6 +98,18 @@
     ctx.restore();
   }
 
+  function drawBolts(ctx, bolts, colors, cell) {
+    if (!bolts || !bolts.length) return;
+    ctx.save();
+    for (const b of bolts) {
+      const color = colors[b.ownerIndex] || '#ffffff';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = color; ctx.shadowBlur = cell * 1.2;
+      ctx.fillRect(b.pos.x * cell + cell * 0.3, b.pos.y * cell + cell * 0.3, cell * 0.4, cell * 0.4);
+    }
+    ctx.restore();
+  }
+
   function drawSnake(ctx, snake, color, cell, trailMode, elapsedSec) {
     ctx.save();
     ctx.shadowColor = color; ctx.shadowBlur = cell * 0.9;
@@ -117,11 +129,12 @@
   }
 
   function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0) {
-    const { board, snakes } = round;
+    const { board, snakes, bolts } = round;
     drawGrid(ctx, board.width, board.height, cell, borderColor);
     drawWalls(ctx, board.walls, cell, borderColor);
+    drawBolts(ctx, bolts, colors, cell);
     snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell, round.trailMode, elapsedSec));
   }
 
-  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fadeAlpha, fit, drawGrid, drawWalls, drawSnake, render };
+  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fadeAlpha, fit, drawGrid, drawWalls, drawBolts, drawSnake, render };
 });

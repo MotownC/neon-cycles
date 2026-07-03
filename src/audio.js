@@ -144,5 +144,16 @@
     }
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash };
+  function fireSfx() {
+    ensure(); const t = ctx.currentTime;
+    tone(t, 1400, 0.08, 'square', 0.3, 4000);
+  }
+
+  function derezSfx() {
+    ensure(); const t = ctx.currentTime;
+    noise(t, 0.12, 0.4, 'bandpass', 2200);
+    tone(t, 220, 0.1, 'sawtooth', 0.25, 900);
+  }
+
+  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx };
 });

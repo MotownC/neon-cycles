@@ -1,11 +1,11 @@
 (function (root, factory) {
   const deps = typeof require === 'function'
-    ? { G: require('./geometry'), B: require('./board') }
-    : { G: window.Geometry, B: window.Board };
+    ? { G: require('./geometry'), B: require('./board'), P: require('./projectile') }
+    : { G: window.Geometry, B: window.Board, P: window.Projectile };
   const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function ({ G, B }) {
+})(this, function ({ G, B, P }) {
   // Turning costs this many territory cells: keeps lines straight unless a
   // turn wins meaningfully more of the board.
   const STRAIGHT_BONUS = 10;
@@ -50,12 +50,19 @@
     return score;
   }
 
-  function chooseDirection(round, index, rand = Math.random) {
+  // Candidate directions for a snake: straight/left/right relative to its
+  // pending direction, filtered to those that don't immediately collide.
+  function safeMoves(round, index) {
     const snake = round.snakes[index];
     const dir = snake.pendingDirection;
     const head = snake.body[snake.body.length - 1];
     const dirs = [dir, G.leftOf(dir), G.rightOf(dir)];
     const safe = dirs.filter((d) => !B.wouldCollide(round.board, G.nextHead(head, d)));
+    return { dir, head, dirs, safe };
+  }
+
+  function chooseDirection(round, index, rand = Math.random) {
+    const { dir, head, safe } = safeMoves(round, index);
     if (!safe.length) return dir; // boxed in: crash forward
     const scored = safe.map((d) => ({
       dir: d,
@@ -66,5 +73,16 @@
     return top[(rand() * top.length) | 0].dir;
   }
 
-  return { __name: 'CPU', chooseDirection };
+  // Fire when boxed in (nothing left to lose) or when the best safe move
+  // still loses territory, as long as ammo is available. Ammo exhaustion
+  // always suppresses firing, even from a hopeless position.
+  function shouldFire(round, index, elapsedSec) {
+    if (P.ammoAvailable(elapsedSec, round.firedCount[index]) <= 0) return false;
+    const { head, safe } = safeMoves(round, index);
+    if (!safe.length) return true; // boxed in entirely: always worth a desperation shot
+    const best = Math.max(...safe.map((d) => scoreMove(round, index, head, d)));
+    return best < 0;
+  }
+
+  return { __name: 'CPU', chooseDirection, shouldFire };
 });
