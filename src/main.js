@@ -21,7 +21,7 @@
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
-    flashes: [], // transient visual markers for bolt cut/stun/bounce outcomes
+    flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
     trailMode: 'tron',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
@@ -103,6 +103,7 @@
   function crashVerdicts() {
     return state.round.snakes.map((s) => {
       if (s.alive) return 'alive';
+      if (s.shotBy !== undefined) return `shot down by ${label(s.shotBy)}'s bolt`;
       const head = s.body[s.body.length - 1];
       const target = Geometry.nextHead(head, s.pendingDirection);
       if (!Board.inBounds(state.round.board, target)) return 'hit boundary wall';
@@ -212,6 +213,11 @@
     }
     state.flashes = state.flashes.filter((f) => state.elapsed - f.start < Renderer.FLASH_DURATION_SEC);
 
+    // A head shot kills between snake ticks, so resolve it here rather than
+    // waiting for the next tick's resolve.
+    Round.resolve(state.round);
+    if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes); return endRound(); }
+
     const normalInt = Speed.tickInterval(state.elapsed);
     const turboInt = Speed.turboInterval(state.elapsed);
 
@@ -228,10 +234,7 @@
             if (state.round.firedCount[1] !== before) Audio.fireSfx();
           }
         }
-        const frozen = state.round.snakes
-          .map((s, i) => (s.stunnedUntil > state.elapsed ? i : -1))
-          .filter((i) => i >= 0);
-        Round.tick(state.round, state.elapsed, frozen);
+        Round.tick(state.round, state.elapsed);
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
@@ -242,9 +245,7 @@
       const snakes = state.round.snakes;
       for (let i = 0; i < snakes.length; i++) {
         if (!snakes[i].alive) continue;
-        const stunned = snakes[i].stunnedUntil > state.elapsed;
-        const interval = stunned ? normalInt / Speed.TURBO_MULTIPLIER
-          : isBoosting(i) ? turboInt : normalInt;
+        const interval = isBoosting(i) ? turboInt : normalInt;
         state.turbo[i].acc += dt;
         while (state.turbo[i].acc >= interval) {
           state.turbo[i].acc -= interval;

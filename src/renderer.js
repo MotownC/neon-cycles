@@ -111,11 +111,11 @@
   }
 
   const FLASH_DURATION_SEC = 0.3;
-  // Hot ember for a destructive hit (cut/stun), cool ping for a harmless bounce.
-  const FLASH_COLORS = { cut: '#ffcc33', stun: '#ffcc33', bounce: '#66ccff' };
+  // Hot ember for a cut, red for a lethal head shot, cool ping for a bounce.
+  const FLASH_COLORS = { cut: '#ffcc33', kill: '#ff4b4b', bounce: '#66ccff' };
 
   // Brief expanding, fading ring marking where a bolt outcome landed, so a
-  // cut/stun/bounce reads visually and isn't sound-only (a bolt that's been
+  // cut/kill/bounce reads visually and isn't sound-only (a bolt that's been
   // bouncing for a while can land far from where it was fired).
   function drawFlashes(ctx, flashes, cell, elapsedSec) {
     if (!flashes || !flashes.length) return;
