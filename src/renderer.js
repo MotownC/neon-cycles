@@ -110,6 +110,34 @@
     ctx.restore();
   }
 
+  const FLASH_DURATION_SEC = 0.3;
+  // Hot ember for a destructive hit (cut/stun), cool ping for a harmless bounce.
+  const FLASH_COLORS = { cut: '#ffcc33', stun: '#ffcc33', bounce: '#66ccff' };
+
+  // Brief expanding, fading ring marking where a bolt outcome landed, so a
+  // cut/stun/bounce reads visually and isn't sound-only (a bolt that's been
+  // bouncing for a while can land far from where it was fired).
+  function drawFlashes(ctx, flashes, cell, elapsedSec) {
+    if (!flashes || !flashes.length) return;
+    ctx.save();
+    for (const f of flashes) {
+      const age = elapsedSec - f.start;
+      if (age < 0 || age >= FLASH_DURATION_SEC) continue;
+      const p = age / FLASH_DURATION_SEC;
+      const color = FLASH_COLORS[f.type] || '#ffffff';
+      const cx = (f.pos.x + 0.5) * cell, cy = (f.pos.y + 0.5) * cell;
+      const radius = cell * (0.3 + p * 0.7);
+      ctx.globalAlpha = 1 - p;
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color; ctx.shadowBlur = cell * 1.2;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawSnake(ctx, snake, color, cell, trailMode, elapsedSec) {
     ctx.save();
     ctx.shadowColor = color; ctx.shadowBlur = cell * 0.9;
@@ -128,13 +156,18 @@
     return `hsl(${h}, 100%, 55%)`;
   }
 
-  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0) {
+  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = []) {
     const { board, snakes, bolts } = round;
     drawGrid(ctx, board.width, board.height, cell, borderColor);
     drawWalls(ctx, board.walls, cell, borderColor);
     drawBolts(ctx, bolts, colors, cell);
+    drawFlashes(ctx, flashes, cell, elapsedSec);
     snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell, round.trailMode, elapsedSec));
   }
 
-  return { __name: 'Renderer', COLORS, PALETTE, pickOpponentColor, randomBorderColor, fadeAlpha, fit, drawGrid, drawWalls, drawBolts, drawSnake, render };
+  return {
+    __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
+    pickOpponentColor, randomBorderColor, fadeAlpha, fit,
+    drawGrid, drawWalls, drawBolts, drawFlashes, drawSnake, render,
+  };
 });

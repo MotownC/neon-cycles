@@ -21,6 +21,7 @@
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
+    flashes: [], // transient visual markers for bolt cut/stun/bounce outcomes
     trailMode: 'tron',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
@@ -48,6 +49,7 @@
     state.colors = [state.playerColor, Renderer.pickOpponentColor(state.playerColor)];
     state.borderColor = Renderer.randomBorderColor();
     state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
+    state.flashes = [];
     state.turbo = [freshTurbo(), freshTurbo()];
     const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
   }
@@ -115,7 +117,8 @@
   function endRound() {
     const verdicts = crashVerdicts();
     // dump slightly late so presses arriving just after the crash are included
-    setTimeout(() => console.log('crash trace v0.4.4:', JSON.stringify({ verdicts, trace })), 600);
+    // label with the live version from the menu so pasted traces can't lie about which build produced them
+    setTimeout(() => console.log(`crash trace ${el('version').textContent}:`, JSON.stringify({ verdicts, trace })), 600);
     Audio.crash(); flashCrash(); state.phase = 'roundover';
     if (state.mode === '1p') return finishSolo();
     Match.awardRound(state.match, state.round.winnerIndex);
@@ -202,8 +205,12 @@
     while (state.boltAcc >= boltInt) {
       state.boltAcc -= boltInt;
       const outcomes = Projectile.advanceBolts(state.round, state.elapsed);
-      if (outcomes.length) Audio.derezSfx();
+      outcomes.forEach((o) => {
+        state.flashes.push({ pos: o.pos, type: o.type, start: state.elapsed });
+        o.type === 'bounce' ? Audio.bounceSfx() : Audio.derezSfx();
+      });
     }
+    state.flashes = state.flashes.filter((f) => state.elapsed - f.start < Renderer.FLASH_DURATION_SEC);
 
     const normalInt = Speed.tickInterval(state.elapsed);
     const turboInt = Speed.turboInterval(state.elapsed);
@@ -228,7 +235,7 @@
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
-        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed); return endRound(); }
+        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes); return endRound(); }
       }
     } else {
       // Per-snake tick: each snake has its own interval based on boost state
@@ -250,13 +257,13 @@
             }
           }
           Round.tickSingle(state.round, i, state.elapsed);
-          if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed); return endRound(); }
+          if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes); return endRound(); }
         }
       }
     }
 
     updateHud();
-    Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed);
+    Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes);
   }
 
   function beginGame(mode) {
