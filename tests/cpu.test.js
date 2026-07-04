@@ -72,7 +72,7 @@ test('fires when boxed in with ammo available', () => {
   round.board.lit.add('2,1'); // left turn
   round.board.lit.add('2,3'); // right turn
   round.firedCount = [0];
-  assert.strictEqual(CPU.shouldFire(round, 0, 0), true);
+  assert.strictEqual(CPU.shouldFire(round, 0, P.FIRE_DELAY_SEC), true);
 });
 
 test('does not fire when boxed in but ammo is exhausted', () => {
@@ -81,7 +81,16 @@ test('does not fire when boxed in but ammo is exhausted', () => {
   round.board.lit.add('2,1'); // left turn
   round.board.lit.add('2,3'); // right turn
   round.firedCount = [P.AMMO_CAP];
-  assert.strictEqual(CPU.shouldFire(round, 0, 0), false);
+  assert.strictEqual(CPU.shouldFire(round, 0, P.FIRE_DELAY_SEC), false);
+});
+
+test('does not fire during the start-of-round lockout, even boxed in with ammo', () => {
+  const round = R.createRound(5, 5, [{ start: { x: 2, y: 2 }, direction: 'right' }]);
+  round.board.lit.add('3,2'); // straight
+  round.board.lit.add('2,1'); // left turn
+  round.board.lit.add('2,3'); // right turn
+  round.firedCount = [0];
+  assert.strictEqual(CPU.shouldFire(round, 0, P.FIRE_DELAY_SEC - 0.1), false);
 });
 
 test('favors sealing the opponent into a room over grazing past it', () => {

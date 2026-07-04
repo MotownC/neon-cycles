@@ -77,6 +77,9 @@
   // still loses territory, as long as ammo is available. Ammo exhaustion
   // always suppresses firing, even from a hopeless position.
   function shouldFire(round, index, elapsedSec) {
+    // During the start-of-round lockout fire() no-ops, so skip the expensive
+    // Voronoi scoring below rather than "deciding" to take an impossible shot.
+    if (elapsedSec < P.FIRE_DELAY_SEC) return false;
     if (P.ammoAvailable(elapsedSec, round.firedCount[index]) <= 0) return false;
     const { head, safe } = safeMoves(round, index);
     if (!safe.length) return true; // boxed in entirely: always worth a desperation shot

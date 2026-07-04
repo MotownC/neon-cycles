@@ -155,5 +155,10 @@
     tone(t, 220, 0.1, 'sawtooth', 0.25, 900);
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx };
+  function bounceSfx() {
+    ensure(); const t = ctx.currentTime;
+    tone(t, 1800, 0.05, 'sine', 0.2); // no cutoff: a filter does nothing useful to a pure sine
+  }
+
+  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx };
 });

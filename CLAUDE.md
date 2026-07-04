@@ -55,5 +55,5 @@ Game phases in `main.js` state: `menu → countdown → playing → roundover/ga
 
 - `README.md` controls section is stale (P1/P2 swapped; missing CPU mode, walls, turbo). The in-game hint in `index.html` is authoritative: P1 = arrows + Right Shift turbo, P2 = WASD + Left Shift turbo.
 - `Round.tickSingle` checks collisions against a snapshot of other snakes (they don't move that tick), so turbo mode has slightly different head-on semantics than the shared `tick` path.
-- Board `lit` cells are never unlit during play (trails are permanent); `Board.unlight` exists only for the CPU's speculative scoring.
+- Board `lit` cells can be unlit during play by trail modes (`fade`/`classic` trim) and by derezzer-bolt cuts (`projectile.js`), plus the CPU's speculative scoring. When destroying a cell, it must also be removed from its owner (`snake.body` / `board.walls`) — the renderer draws from those arrays and `tickSingle` collides against `body`, so an unlight-only cut leaves an invisible-but-passable hole.
 - Design/plan history lives under `docs/plans/` and `docs/superpowers/specs/`.
