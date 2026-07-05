@@ -1,11 +1,11 @@
 (function (root, factory) {
   const deps = typeof require === 'function'
-    ? { T: require('./trail') }
-    : { T: window.Trail };
+    ? { T: require('./trail'), S: require('./sprites') }
+    : { T: window.Trail, S: window.Sprites };
   const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function ({ T }) {
+})(this, function ({ T, S }) {
   const COLORS = ['#00f0ff', '#ff2bd6'];
   const PALETTE = ['#00f0ff', '#ff2bd6', '#39ff6a', '#ff9d2b', '#fff23b', '#b06bff', '#ff3b3b', '#f2f6ff'];
 
@@ -56,63 +56,46 @@
 
   const ANGLES = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
 
-  // Top-down light cycle at the head cell, nose pointing along travel direction.
-  function drawCycle(ctx, snake, color, cell) {
+  // Sprites are baked on padded square canvases; blit centered on the cell.
+  function blit(ctx, img, cellX, cellY, cell, span) {
+    const d = (span - 1) / 2;
+    ctx.drawImage(img, (cellX - d) * cell, (cellY - d) * cell, span * cell, span * cell);
+  }
+
+  // Baked light cycle at the head cell, nose pointing along travel direction.
+  function drawCycle(ctx, snake, color, cell, atlas) {
     const head = snake.body[snake.body.length - 1];
+    const img = atlas.cycles[color];
+    const span = atlas.spans.cycle;
     ctx.save();
     ctx.translate((head.x + 0.5) * cell, (head.y + 0.5) * cell);
     ctx.rotate(ANGLES[snake.direction]);
-    ctx.shadowColor = color; ctx.shadowBlur = cell * 1.4;
-    ctx.fillStyle = '#ffffff';
-    // front wheel, protruding past the fairing
-    ctx.fillRect(cell * 0.34, -cell * 0.09, cell * 0.32, cell * 0.18);
-    // rear wheel, wider
-    ctx.fillRect(-cell * 0.66, -cell * 0.13, cell * 0.3, cell * 0.26);
-    // fairing: widest at the rider, tapering toward both wheels
-    ctx.beginPath();
-    ctx.moveTo(cell * 0.4, 0);
-    ctx.lineTo(cell * 0.05, -cell * 0.3);
-    ctx.lineTo(-cell * 0.42, -cell * 0.24);
-    ctx.lineTo(-cell * 0.42, cell * 0.24);
-    ctx.lineTo(cell * 0.05, cell * 0.3);
-    ctx.closePath();
-    ctx.fill();
-    // dark cockpit slit
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#05060a';
-    ctx.fillRect(-cell * 0.22, -cell * 0.08, cell * 0.34, cell * 0.16);
+    ctx.drawImage(img, -span * cell / 2, -span * cell / 2, span * cell, span * cell);
     ctx.restore();
   }
 
-  function drawWalls(ctx, walls, cell, borderColor) {
+  function drawWalls(ctx, walls, cell, atlas) {
     if (!walls || !walls.length) return;
-    ctx.save();
-    ctx.fillStyle = borderColor;
-    ctx.globalAlpha = 0.55;
-    ctx.strokeStyle = borderColor; ctx.lineWidth = 1;
-    ctx.shadowColor = borderColor; ctx.shadowBlur = cell * 0.5;
-    for (const c of walls) {
-      ctx.fillRect(c.x * cell + 1, c.y * cell + 1, cell - 2, cell - 2);
-      ctx.strokeRect(c.x * cell + 1.5, c.y * cell + 1.5, cell - 3, cell - 3);
-    }
-    ctx.restore();
+    for (const c of walls) blit(ctx, atlas.wall, c.x, c.y, cell, atlas.spans.wall);
   }
 
-  function drawBolts(ctx, bolts, colors, cell) {
+  function drawBolts(ctx, bolts, colors, cell, atlas, elapsedSec) {
     if (!bolts || !bolts.length) return;
-    ctx.save();
+    const span = atlas.spans.bolt;
     for (const b of bolts) {
-      const color = colors[b.ownerIndex] || '#ffffff';
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = color; ctx.shadowBlur = cell * 1.2;
-      ctx.fillRect(b.pos.x * cell + cell * 0.3, b.pos.y * cell + cell * 0.3, cell * 0.4, cell * 0.4);
+      const frames = atlas.bolts[colors[b.ownerIndex]] || atlas.bolts[colors[0]];
+      const img = frames[((elapsedSec * 20) | 0) % frames.length];
+      ctx.save();
+      ctx.translate((b.pos.x + 0.5) * cell, (b.pos.y + 0.5) * cell);
+      ctx.rotate(Math.atan2(b.dir.y, b.dir.x)); // spray bolts travel diagonally
+      ctx.drawImage(img, -span * cell / 2, -span * cell / 2, span * cell, span * cell);
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   const FLASH_DURATION_SEC = 0.3;
   // Hot ember for a cut, red for a lethal head shot, cool ping for a bounce.
-  const FLASH_COLORS = { cut: '#ffcc33', kill: '#ff4b4b', bounce: '#66ccff' };
+  const FLASH_COLORS = { cut: '#ffcc33', kill: '#ff4b4b', bounce: '#66ccff', pickup: '#39ff6a' };
 
   // Brief expanding, fading ring marking where a bolt outcome landed, so a
   // cut/kill/bounce reads visually and isn't sound-only (a bolt that's been
@@ -138,16 +121,61 @@
     ctx.restore();
   }
 
-  function drawSnake(ctx, snake, color, cell, trailMode, elapsedSec) {
+  function drawSnake(ctx, snake, color, cell, trailMode, elapsedSec, frozen, atlas) {
+    const tiles = atlas.trails[color];
+    const span = atlas.spans.trail;
+    const baseAlpha = snake.phase ? 0.5 : 1; // ghosted-once charge still armed: read as semi-transparent
     ctx.save();
-    ctx.shadowColor = color; ctx.shadowBlur = cell * 0.9;
-    ctx.fillStyle = color;
-    for (const c of snake.body) {
-      if (trailMode === 'fade') ctx.globalAlpha = fadeAlpha(elapsedSec - c.t, T.FADE_SECONDS);
-      ctx.fillRect(c.x * cell + 1, c.y * cell + 1, cell - 2, cell - 2);
+    for (let i = 0; i < snake.body.length; i++) {
+      const c = snake.body[i];
+      let a = baseAlpha;
+      if (trailMode === 'fade') a *= fadeAlpha(elapsedSec - c.t, T.FADE_SECONDS);
+      ctx.globalAlpha = a;
+      const key = S.trailKey(snake.body[i - 1] || null, c, snake.body[i + 1] || null);
+      blit(ctx, tiles[key], c.x, c.y, cell, span);
     }
     ctx.restore();
-    drawCycle(ctx, snake, color, cell);
+    drawCycle(ctx, snake, color, cell, atlas);
+    if (snake.shield) drawShieldRing(ctx, snake, cell, elapsedSec);
+    if (frozen) drawFrostOverlay(ctx, snake, cell);
+  }
+
+  // A pulsing cyan ring around the head signals an armed, single-use shield.
+  function drawShieldRing(ctx, snake, cell, elapsedSec) {
+    const h = snake.body[snake.body.length - 1];
+    const pulse = 0.75 + 0.25 * Math.sin(elapsedSec * 6);
+    ctx.save();
+    ctx.strokeStyle = '#66e0ff';
+    ctx.shadowColor = '#66e0ff'; ctx.shadowBlur = cell * 0.6;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = pulse;
+    ctx.beginPath();
+    ctx.arc((h.x + 0.5) * cell, (h.y + 0.5) * cell, cell * 0.75, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // An icy tint over a frozen snake's head makes the stall readable at a glance.
+  function drawFrostOverlay(ctx, snake, cell) {
+    const h = snake.body[snake.body.length - 1];
+    ctx.save();
+    ctx.fillStyle = 'rgba(150,220,255,0.55)';
+    ctx.shadowColor = '#bdeeff'; ctx.shadowBlur = cell * 1.1;
+    ctx.beginPath();
+    ctx.arc((h.x + 0.5) * cell, (h.y + 0.5) * cell, cell * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPickups(ctx, pickups, cell, elapsedSec, atlas) {
+    if (!pickups || !pickups.length) return;
+    const span = atlas.spans.pickup;
+    for (const p of pickups) {
+      const img = atlas.pickups[p.type] || atlas.pickups.ammo;
+      const bob = Math.sin(elapsedSec * 3 + p.spawnedAt) * cell * 0.08;
+      const d = (span - 1) / 2;
+      ctx.drawImage(img, (p.pos.x - d) * cell, (p.pos.y - d) * cell + bob, span * cell, span * cell);
+    }
   }
 
   // Generate a vivid random HSL color suitable for neon borders/walls.
@@ -156,18 +184,20 @@
     return `hsl(${h}, 100%, 55%)`;
   }
 
-  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = []) {
-    const { board, snakes, bolts } = round;
+  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = [], atlas) {
+    const { board, snakes, bolts, pickups, frozenUntil } = round;
     drawGrid(ctx, board.width, board.height, cell, borderColor);
-    drawWalls(ctx, board.walls, cell, borderColor);
-    drawBolts(ctx, bolts, colors, cell);
+    drawWalls(ctx, board.walls, cell, atlas);
+    drawPickups(ctx, pickups, cell, elapsedSec, atlas);
+    drawBolts(ctx, bolts, colors, cell, atlas, elapsedSec);
     drawFlashes(ctx, flashes, cell, elapsedSec);
-    snakes.forEach((s, i) => drawSnake(ctx, s, colors[i], cell, round.trailMode, elapsedSec));
+    snakes.forEach((s, i) =>
+      drawSnake(ctx, s, colors[i], cell, round.trailMode, elapsedSec, !!frozenUntil && elapsedSec < frozenUntil[i], atlas));
   }
 
   return {
     __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
     pickOpponentColor, randomBorderColor, fadeAlpha, fit,
-    drawGrid, drawWalls, drawBolts, drawFlashes, drawSnake, render,
+    drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, render,
   };
 });

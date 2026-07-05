@@ -34,16 +34,16 @@ test('fadeAlpha never drops below the floor once expired', () => {
 });
 
 // Minimal mock 2D context: no-op stubs for everything drawGrid/drawWalls/
-// drawSnake/drawCycle touch, plus a recorded log of fillRect calls so we can
-// assert on what render() actually drew.
+// drawSnake/drawCycle touch, plus a recorded log of drawImage calls so we can
+// assert on what render() actually blitted from the sprite atlas.
 function mockCtx() {
-  const fillRectCalls = [];
+  const drawImageCalls = [];
   return {
-    fillRectCalls,
+    drawImageCalls,
     save() {}, restore() {},
     beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, closePath() {}, fill() {},
-    clearRect() {}, strokeRect() {}, translate() {}, rotate() {},
-    fillRect(...args) { fillRectCalls.push(args); },
+    clearRect() {}, strokeRect() {}, translate() {}, rotate() {}, fillRect() {},
+    drawImage(...args) { drawImageCalls.push(args); },
     set fillStyle(v) {}, get fillStyle() { return ''; },
     set strokeStyle(v) {}, get strokeStyle() { return ''; },
     set lineWidth(v) {}, get lineWidth() { return 0; },
@@ -53,30 +53,47 @@ function mockCtx() {
   };
 }
 
+// Fake atlas with tagged sprite entries; no real canvases needed since the
+// mock context just records drawImage arguments.
+function fakeAtlas(colors) {
+  const atlas = {
+    cycles: {}, bolts: {}, trails: {}, wall: { id: 'wall' },
+    pickups: { shield: {}, freeze: {}, ammo: {}, phase: {} },
+    spans: { cycle: 3, bolt: 3, trail: 3, wall: 2, pickup: 3 },
+  };
+  for (const color of colors) {
+    atlas.cycles[color] = { id: `cycle-${color}` };
+    atlas.bolts[color] = [{ id: `bolt-${color}-0` }, { id: `bolt-${color}-1` }, { id: `bolt-${color}-2` }];
+    atlas.trails[color] = {};
+  }
+  return atlas;
+}
+
 test('render draws each active bolt', () => {
   const ctx = mockCtx();
+  const colors = ['#00f0ff', '#ff2bd6'];
   const round = {
     board: { width: 10, height: 10, walls: [] },
     snakes: [],
-    bolts: [{ ownerIndex: 0, pos: { x: 3, y: 3 }, dir: 'right' }],
+    bolts: [{ ownerIndex: 0, pos: { x: 3, y: 3 }, dir: { x: 1, y: 0 } }],
     trailMode: 'tron',
   };
-  Renderer.render(ctx, round, 10, ['#00f0ff', '#ff2bd6']);
-  // drawGrid's background fill is fillRectCalls[0]; the bolt is the second call.
-  assert.strictEqual(ctx.fillRectCalls.length, 2);
-  const [x, y, w, h] = ctx.fillRectCalls[1];
-  assert.ok(x > 30 && x < 40 && y > 30 && y < 40, `expected bolt cell coords, got ${x},${y}`);
+  Renderer.render(ctx, round, 10, colors, '#ff2b4a', 0, [], fakeAtlas(colors));
+  assert.strictEqual(ctx.drawImageCalls.length, 1);
+  const [img, , , w, h] = ctx.drawImageCalls[0];
+  assert.match(img.id, /^bolt-#00f0ff/);
   assert.ok(w > 0 && h > 0);
 });
 
 test('render draws nothing extra when there are no bolts', () => {
   const ctx = mockCtx();
+  const colors = ['#00f0ff', '#ff2bd6'];
   const round = {
     board: { width: 5, height: 5, walls: [] },
     snakes: [],
     bolts: [],
     trailMode: 'tron',
   };
-  Renderer.render(ctx, round, 10, ['#00f0ff', '#ff2bd6']);
-  assert.strictEqual(ctx.fillRectCalls.length, 1); // just drawGrid's background fill, no bolts
+  Renderer.render(ctx, round, 10, colors, '#ff2b4a', 0, [], fakeAtlas(colors));
+  assert.strictEqual(ctx.drawImageCalls.length, 0); // no bolts, walls, or snakes to blit
 });
