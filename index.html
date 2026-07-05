@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NEON CYCLES</title>
-  <link rel="stylesheet" href="styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="styles.css?v=0.9.0" />
 </head>
 <body>
   <div id="stage">
@@ -17,13 +17,23 @@
         <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
         <button data-mode="cpu" class="neon-btn cyan">1 PLAYER — VS CPU</button>
         <button data-mode="2p" class="neon-btn magenta">2 PLAYER — FIRST TO 10</button>
+        <button data-mode="gauntlet" class="neon-btn magenta">GAUNTLET — FACE THE FIVE</button>
       </div>
+      <p class="hint" id="gauntlet-best"></p>
       <div class="wall-toggle" role="group" aria-label="Wall density">
         <span class="hint">WALLS</span>
         <button data-wall="none" class="wall-btn active">NONE</button>
         <button data-wall="low" class="wall-btn">LOW</button>
         <button data-wall="med" class="wall-btn">MED</button>
         <button data-wall="high" class="wall-btn">HIGH</button>
+      </div>
+      <div class="rival-toggle" role="group" aria-label="CPU rival">
+        <span class="hint">RIVAL</span>
+        <button data-rival="drifter" class="wall-btn">DRIFTER</button>
+        <button data-rival="survivor" class="wall-btn">SURVIVOR</button>
+        <button data-rival="aggressor" class="wall-btn active">AGGRESSOR</button>
+        <button data-rival="ambusher" class="wall-btn">AMBUSHER</button>
+        <button data-rival="grandmaster" class="wall-btn">GRANDMASTER</button>
       </div>
       <div class="turbo-toggle" role="group" aria-label="Turbo mode">
         <span class="hint">TURBO</span>
@@ -41,7 +51,7 @@
       </div>
       <div id="leaderboard" class="leaderboard"></div>
       <p class="hint">P1: ARROW KEYS &nbsp;•&nbsp; P2: W A S D &nbsp;•&nbsp; TURBO: P1 R-SHIFT / P2 L-SHIFT &nbsp;•&nbsp; FIRE: P1 / / P2 Q</p>
-      <p class="hint" id="version">v0.5.0</p>
+      <p class="hint" id="version">v0.9.0</p>
     </section>
 
     <!-- Countdown overlay -->
@@ -60,20 +70,23 @@
 
   <!-- ?v= must match the version shown in the menu; bump both together so
        browsers refetch scripts instead of reusing stale cached copies -->
-  <script src="src/geometry.js?v=0.5.0"></script>
-  <script src="src/snake.js?v=0.5.0"></script>
-  <script src="src/board.js?v=0.5.0"></script>
-  <script src="src/trail.js?v=0.5.0"></script>
-  <script src="src/projectile.js?v=0.5.0"></script>
-  <script src="src/walls.js?v=0.5.0"></script>
-  <script src="src/round.js?v=0.5.0"></script>
-  <script src="src/match.js?v=0.5.0"></script>
-  <script src="src/cpu.js?v=0.5.0"></script>
-  <script src="src/speed.js?v=0.5.0"></script>
-  <script src="src/leaderboard.js?v=0.5.0"></script>
-  <script src="src/audio.js?v=0.5.0"></script>
-  <script src="src/renderer.js?v=0.5.0"></script>
-  <script src="src/input.js?v=0.5.0"></script>
-  <script src="src/main.js?v=0.5.0"></script>
+  <script src="src/geometry.js?v=0.9.0"></script>
+  <script src="src/snake.js?v=0.9.0"></script>
+  <script src="src/board.js?v=0.9.0"></script>
+  <script src="src/trail.js?v=0.9.0"></script>
+  <script src="src/projectile.js?v=0.9.0"></script>
+  <script src="src/powerups.js?v=0.9.0"></script>
+  <script src="src/walls.js?v=0.9.0"></script>
+  <script src="src/round.js?v=0.9.0"></script>
+  <script src="src/match.js?v=0.9.0"></script>
+  <script src="src/gauntlet.js?v=0.9.0"></script>
+  <script src="src/cpu.js?v=0.9.0"></script>
+  <script src="src/speed.js?v=0.9.0"></script>
+  <script src="src/leaderboard.js?v=0.9.0"></script>
+  <script src="src/audio.js?v=0.9.0"></script>
+  <script src="src/sprites.js?v=0.9.0"></script>
+  <script src="src/renderer.js?v=0.9.0"></script>
+  <script src="src/input.js?v=0.9.0"></script>
+  <script src="src/main.js?v=0.9.0"></script>
 </body>
 </html>
