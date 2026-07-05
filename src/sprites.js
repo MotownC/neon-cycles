@@ -64,38 +64,38 @@
     const canvas = makeTile(cell, 3), ctx = canvas.getContext('2d');
     const u = cell * SCALE, cx = canvas.width / 2, cy = cx;
     ctx.translate(cx, cy);
-    // glow halo
-    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, u * 1.3);
+    // glow halo, kept faint so it doesn't swallow the wheel/canopy detail
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, u * 1.1);
     halo.addColorStop(0, color); halo.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = 0.30; ctx.fillStyle = halo;
-    ctx.beginPath(); ctx.arc(0, 0, u * 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.16; ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, u * 1.1, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    // glowing wheel discs with dark hubs
+    // glowing wheel discs with dark hubs, protruding past the fairing
     const wheel = (x, r) => {
       const wg = ctx.createRadialGradient(x, 0, r * 0.2, x, 0, r);
-      wg.addColorStop(0, '#0a0d14'); wg.addColorStop(0.75, color); wg.addColorStop(1, '#ffffff');
+      wg.addColorStop(0, '#0a0d14'); wg.addColorStop(0.7, color); wg.addColorStop(1, '#ffffff');
       ctx.fillStyle = wg;
-      ctx.shadowColor = color; ctx.shadowBlur = u * 0.5;
+      ctx.shadowColor = color; ctx.shadowBlur = u * 0.35;
       ctx.beginPath(); ctx.arc(x, 0, r, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#05060a';
-      ctx.beginPath(); ctx.arc(x, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
     };
-    wheel(-u * 0.48, u * 0.27);
-    wheel(u * 0.52, u * 0.19);
-    // fairing: smooth teardrop, bright nose fading to a dark tail
+    wheel(-u * 0.54, u * 0.30);
+    wheel(u * 0.58, u * 0.22);
+    // fairing: slim teardrop, bright nose fading to a dark tail
     const body = () => {
       ctx.beginPath();
       ctx.moveTo(u * 0.66, 0);
-      ctx.bezierCurveTo(u * 0.45, -u * 0.30, -u * 0.10, -u * 0.34, -u * 0.46, -u * 0.22);
-      ctx.bezierCurveTo(-u * 0.60, -u * 0.10, -u * 0.60, u * 0.10, -u * 0.46, u * 0.22);
-      ctx.bezierCurveTo(-u * 0.10, u * 0.34, u * 0.45, u * 0.30, u * 0.66, 0);
+      ctx.bezierCurveTo(u * 0.45, -u * 0.26, -u * 0.10, -u * 0.28, -u * 0.42, -u * 0.18);
+      ctx.bezierCurveTo(-u * 0.54, -u * 0.08, -u * 0.54, u * 0.08, -u * 0.42, u * 0.18);
+      ctx.bezierCurveTo(-u * 0.10, u * 0.28, u * 0.45, u * 0.26, u * 0.66, 0);
       ctx.closePath();
     };
     const bg = ctx.createLinearGradient(u * 0.66, 0, -u * 0.6, 0);
     bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.25, color); bg.addColorStop(1, '#101624');
     ctx.fillStyle = bg;
-    ctx.shadowColor = color; ctx.shadowBlur = u * 0.6;
+    ctx.shadowColor = color; ctx.shadowBlur = u * 0.35;
     body(); ctx.fill();
     // rim light outline
     ctx.shadowBlur = 0; ctx.strokeStyle = color; ctx.lineWidth = u * 0.05;
