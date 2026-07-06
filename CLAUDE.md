@@ -4,22 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Neon Cycles** (v0.4.4) — a browser-based Tron-style light-cycle game. Snakes leave *permanent* glowing trails (trails never shrink; there is no food/eating). Crashing into the arena boundary, an interior wall, any trail, or head-on with the opponent ends the round. Vanilla JS, HTML5 canvas, Web Audio — **no build step, no dependencies, no framework**.
+**Neon Cycles** — a browser-based Tron-style light-cycle game. Snakes leave glowing trails. Crashing into the arena boundary, an interior wall, any trail, or head-on with the opponent ends the round. Vanilla JS, HTML5 canvas, Web Audio — **no build step, no framework; the browser game has no dependencies** (the online server has one, `ws`, server-only).
 
-Three modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, and local 2P (first to 10 rounds). Menu options: wall density (none/low/med/high), turbo on/off, player color.
+Modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, local 2P (first to 10 rounds), Gauntlet (CPU rival ladder), and Online (remote 2P via room codes). Menu options: wall density (none/low/med/high), rival, turbo on/off, trail mode, player color.
 
 ## Commands
 
 ```
 node --test                      # run all tests
 node --test tests/round.test.js  # run a single test file
+npm start                        # online server (serves the game + WebSocket relay, port 8735)
 ```
 
 There is no lint, build, or bundler. To play, open `index.html` directly in a browser, or serve the directory (a static server config named `neon-cycles-static` exists in `.claude/launch.json`, port 8734, for browser preview).
 
 ## Versioning / cache busting
 
-Script and stylesheet tags in `index.html` carry a `?v=0.4.4` query string that must match the version shown in the menu (`#version` element) and `package.json`. **When bumping the version, update all three together** so browsers refetch instead of using stale cached files.
+Script and stylesheet tags in `index.html` carry a `?v=<version>` query string that must match the version shown in the menu (`#version` element) and `package.json`. **When bumping the version, update all three together** so browsers refetch instead of using stale cached files.
 
 ## Architecture
 
@@ -29,8 +30,8 @@ Every file in `src/` uses the same UMD-ish wrapper: a factory returning an API o
 
 ### Pure logic vs. DOM shell
 
-- **Pure, DOM-free, tested modules:** `geometry.js` (direction vectors, turns, reversal checks), `snake.js` (body array — head is the *last* element — plus a 3-deep buffered turn queue), `board.js` (lit-cell `Set` keyed `"x,y"`, collision checks, BFS `distanceMap`/`openArea`), `walls.js` (procedural mirrored wall generation with spawn-safe zones), `round.js` (tick engine), `match.js` (round scoring to a target), `cpu.js` (AI), `speed.js` (tick-interval ramp + turbo constants), `leaderboard.js` (localStorage top-10). Each has a matching file in `tests/` using `node:test`.
-- **Browser-only modules (no unit tests for behavior):** `main.js` (game state machine, rAF loop, HUD, menu wiring), `renderer.js` (canvas drawing, palette), `input.js` (keyboard mapping), `audio.js` (procedural Web Audio soundtrack that intensifies over time, crash SFX).
+- **Pure, DOM-free, tested modules:** `geometry.js` (direction vectors, turns, reversal checks), `snake.js` (body array — head is the *last* element — plus a 3-deep buffered turn queue), `board.js` (lit-cell `Set` keyed `"x,y"`, collision checks, BFS `distanceMap`/`openArea`), `walls.js` (procedural mirrored wall generation with spawn-safe zones), `round.js` (tick engine), `match.js` (round scoring to a target), `cpu.js` (AI), `speed.js` (tick-interval ramp + turbo constants), `leaderboard.js` (localStorage top-10), `net.js` (online lockstep: seeded PRNG, per-tick input pipeline with a 2-tick input delay, desync hashes), plus `server/rooms.js` (pure room pairing, tested in `tests/server.test.js`). Each has a matching file in `tests/` using `node:test`.
+- **Browser-only modules (no unit tests for behavior):** `main.js` (game state machine, rAF loop, HUD, menu wiring), `renderer.js` (canvas drawing, palette), `input.js` (keyboard mapping), `audio.js` (procedural Web Audio soundtrack that intensifies over time, crash SFX), `online.js` (WebSocket shell). `server/server.js` is the Node shell (static files + message relay); `ws` is its only dependency and it never loads in the browser.
 
 Keep new game logic in pure modules with tests; keep DOM/canvas/audio access out of them.
 
@@ -42,6 +43,17 @@ Keep new game logic in pure modules with tests; keep DOM/canvas/audio access out
 - **Turbo on:** per-snake accumulators; each snake ticks at its own interval (boosting snakes tick faster) via `Round.tickSingle(round, i)`. Turbo is a fuel/cooldown resource (`freshTurbo()` in `main.js`, constants in `speed.js`), held with Shift keys.
 
 Game phases in `main.js` state: `menu → countdown → playing → roundover/gameover`. Direction input is *buffered* (up to 3 turns, each validated against the previous queued direction) so fast S-turns work — see `Snake.bufferDirection`.
+
+### Online mode (server-sequenced lockstep)
+
+The `online` mode runs the same deterministic sim on both browsers from a
+server-chosen seed; the server (`server/server.js`) only pairs 4-letter room
+codes and relays per-tick `input` messages. A client executes tick N only
+when both players' inputs for N are present (`Net.canTick`), with a 2-tick
+input delay. **Online `state.elapsed` is simulated time** (advanced by
+`Speed.tickInterval` per executed tick, never wall clock) — anything fed
+into the sim must stay a pure function of seed + tick inputs. Turbo, bolts,
+and powerups are disabled online (v1). Deploy notes: `docs/deploy.md`.
 
 ### CPU opponent
 
