@@ -39,10 +39,14 @@
     return { cell, ctx };
   }
 
-  function drawGrid(ctx, cols, rows, cell, borderColor) {
+  function clearBackground(ctx, cols, rows, cell) {
     ctx.clearRect(0, 0, cols * cell, rows * cell);
     ctx.fillStyle = '#05060a';
     ctx.fillRect(0, 0, cols * cell, rows * cell);
+  }
+
+  function drawGrid(ctx, cols, rows, cell, borderColor) {
+    clearBackground(ctx, cols, rows, cell);
     ctx.strokeStyle = 'rgba(60,90,140,0.12)'; ctx.lineWidth = 1;
     for (let x = 0; x <= cols; x++) { ctx.beginPath(); ctx.moveTo(x*cell, 0); ctx.lineTo(x*cell, rows*cell); ctx.stroke(); }
     for (let y = 0; y <= rows; y++) { ctx.beginPath(); ctx.moveTo(0, y*cell); ctx.lineTo(cols*cell, y*cell); ctx.stroke(); }
@@ -198,6 +202,6 @@
   return {
     __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
     pickOpponentColor, randomBorderColor, fadeAlpha, fit,
-    drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, render,
+    clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, render,
   };
 });

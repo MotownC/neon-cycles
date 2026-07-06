@@ -4,6 +4,10 @@
   const stage = document.getElementById('stage');
   let cell, ctx;
 
+  function fitCanvas() {
+    const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
+  }
+
   const el = (id) => document.getElementById(id);
   const menu = el('menu'), countdown = el('countdown'), hud = el('hud'),
         gameover = el('gameover'), countSpan = el('count'),
@@ -47,6 +51,7 @@
     rival: 'aggressor',
     gauntlet: null, // active Gauntlet run, only in gauntlet mode
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
+    attract: null, // decorative menu-screen loop; see initAttract()
   };
 
   // Both CPU-driven modes share the same input/AI plumbing; they differ only
@@ -99,8 +104,64 @@
     state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
     state.flashes = [];
     state.turbo = [freshTurbo(), freshTurbo()];
-    const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
+    fitCanvas();
     state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor });
+  }
+
+  // Decorative menu-screen loop: a cycle tracing a box around the mode
+  // buttons, entirely separate from real game state (state.round). A closed
+  // rectangle can never self-intersect, so there's no crash/respawn to
+  // handle — it just loops forever while state.phase === 'menu'.
+  const ATTRACT_BOX_PADDING = 2; // cells of clearance around the buttons
+  const ATTRACT_TICK_MS = Speed.BASE_MS;
+
+  function computeAttractBox() {
+    const canvasRect = canvas.getBoundingClientRect();
+    const btnRect = document.querySelector('.menu-buttons').getBoundingClientRect();
+    const pad = ATTRACT_BOX_PADDING;
+    return {
+      left: Math.max(0, Math.floor((btnRect.left - canvasRect.left) / cell) - pad),
+      top: Math.max(0, Math.floor((btnRect.top - canvasRect.top) / cell) - pad),
+      right: Math.min(COLS - 1, Math.ceil((btnRect.right - canvasRect.left) / cell) + pad),
+      bottom: Math.min(ROWS - 1, Math.ceil((btnRect.bottom - canvasRect.top) / cell) + pad),
+    };
+  }
+
+  function initAttract() {
+    if (!cell) fitCanvas();
+    const corners = Attract.corners(computeAttractBox());
+    const board = Board.createBoard(COLS, ROWS, []);
+    const head = { ...corners[0], t: 0 };
+    Board.light(board, head);
+    state.attract = {
+      board, corners, targetIndex: 1, colorIndex: 0, elapsed: 0, acc: 0,
+      snake: { body: [head], direction: 'right' },
+      atlas: Sprites.bake({ cell, colors: Renderer.PALETTE, borderColor: '#000' }),
+    };
+  }
+
+  function advanceAttract(dtSec) {
+    const a = state.attract;
+    a.elapsed += dtSec;
+    a.acc += dtSec * 1000;
+    while (a.acc >= ATTRACT_TICK_MS) {
+      a.acc -= ATTRACT_TICK_MS;
+      const head = a.snake.body[a.snake.body.length - 1];
+      const step = Attract.step(a.corners, head, a.targetIndex);
+      a.snake.direction = step.direction;
+      a.targetIndex = step.targetIndex;
+      const nextCell = { ...step.head, t: a.elapsed };
+      a.snake.body.push(nextCell);
+      Board.light(a.board, nextCell);
+      Trail.trim(a.snake, a.board, 'fade', a.elapsed);
+      if (step.completedLap) a.colorIndex = (a.colorIndex + 1) % Renderer.PALETTE.length;
+    }
+  }
+
+  function renderAttract() {
+    const a = state.attract;
+    Renderer.clearBackground(ctx, COLS, ROWS, cell);
+    Renderer.drawSnake(ctx, a.snake, Renderer.PALETTE[a.colorIndex], cell, 'fade', a.elapsed, false, a.atlas);
   }
 
   function startCountdown() {
@@ -309,6 +370,11 @@
 
   function loop(now) {
     state.raf = requestAnimationFrame(loop);
+    if (state.phase === 'menu') {
+      const dtSec = Math.min(now - state.last, 250) / 1000; state.last = now;
+      if (state.attract) { advanceAttract(dtSec); renderAttract(); }
+      return;
+    }
     if (state.phase !== 'playing') return;
     const dt = Math.min(now - state.last, 250); state.last = now;
     const dtSec = dt / 1000;
@@ -488,6 +554,8 @@
       ? (best >= Gauntlet.STAGES.length ? '★ GRID CHAMPION ★'
         : `GAUNTLET BEST: ${best} OF ${Gauntlet.STAGES.length} RIVALS`) : '';
     show(menu);
+    state.last = performance.now();
+    initAttract();
   }
 
   // wire input + menu buttons
@@ -636,8 +704,10 @@
   });
 
   window.addEventListener('resize', () => {
-    if (state.round) {
-      const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
+    if (state.phase === 'menu') {
+      initAttract();
+    } else if (state.round) {
+      fitCanvas();
       state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor });
     }
   });
