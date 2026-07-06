@@ -36,6 +36,7 @@
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
+    matchTarget: MATCH_TARGET,
     flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
     trailMode: 'tron',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
@@ -428,7 +429,7 @@
   function beginGame(mode) {
     state.mode = mode;
     state.gauntlet = mode === 'gauntlet' ? Gauntlet.createGauntlet() : null;
-    state.match = Match.createMatch(mode === 'gauntlet' ? Gauntlet.STAGE_TARGET : MATCH_TARGET);
+    state.match = Match.createMatch(mode === 'gauntlet' ? Gauntlet.STAGE_TARGET : state.matchTarget);
     newRound(); startCountdown();
   }
 
@@ -461,7 +462,7 @@
     state.online = { seed: start.seed >>> 0, settings: start.settings, youAre: start.youAre,
       session: null, pending: [], roundNumber: 0, localReady: false, remoteReady: false,
       stallSince: null, lagging: false };
-    state.match = Match.createMatch(MATCH_TARGET);
+    state.match = Match.createMatch(start.settings.matchTarget);
     newRound(); startCountdown();
   }
 
@@ -543,6 +544,12 @@
     wallButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
+  const targetButtons = document.querySelectorAll('[data-target]');
+  targetButtons.forEach((btn) => btn.addEventListener('click', () => {
+    state.matchTarget = parseInt(btn.dataset.target, 10);
+    targetButtons.forEach((b) => b.classList.toggle('active', b === btn));
+  }));
+
   const turboButtons = document.querySelectorAll('[data-turbo]');
   turboButtons.forEach((btn) => btn.addEventListener('click', () => {
     state.turboEnabled = btn.dataset.turbo === 'on';
@@ -621,7 +628,7 @@
 
   el('online-toggle').addEventListener('click', () => el('online-panel').classList.toggle('hidden'));
   el('online-host').addEventListener('click', () => onlineConnectAnd(() =>
-    Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode } })));
+    Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode, matchTarget: state.matchTarget } })));
   el('online-join').addEventListener('click', () => {
     const code = el('online-code-input').value.trim().toUpperCase();
     if (code.length !== 4) return setOnlineStatus('ENTER THE 4-LETTER CODE');

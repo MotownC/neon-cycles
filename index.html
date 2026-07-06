@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NEON CYCLES</title>
-  <link rel="stylesheet" href="styles.css?v=0.13.0" />
+  <link rel="stylesheet" href="styles.css?v=0.14.0" />
 </head>
 <body>
   <div id="stage">
@@ -17,8 +17,8 @@
         <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
         <button data-mode="cpu" class="neon-btn cyan">1 PLAYER — VS CPU</button>
         <button data-mode="gauntlet" class="neon-btn cyan">GAUNTLET — FACE THE FIVE</button>
-        <button data-mode="2p" class="neon-btn magenta">2 PLAYER — FIRST TO 10</button>
-        <button id="online-toggle" class="neon-btn magenta">ONLINE — PLAY A FRIEND</button>
+        <button data-mode="2p" class="neon-btn magenta">2 PLAYER — LOCAL</button>
+        <button id="online-toggle" class="neon-btn magenta">2 PLAYER — ONLINE</button>
       </div>
       <div id="online-panel" class="hidden">
         <div style="display:flex;flex-direction:column;gap:8px;align-items:center;margin:8px 0">
@@ -67,6 +67,13 @@
         <button data-wall="med" class="wall-btn">MED</button>
         <button data-wall="high" class="wall-btn">HIGH</button>
       </div>
+      <div class="target-toggle settings-group hidden" role="group" aria-label="Match target">
+        <span class="hint">FIRST TO</span>
+        <button data-target="3" class="wall-btn">3</button>
+        <button data-target="5" class="wall-btn">5</button>
+        <button data-target="10" class="wall-btn active">10</button>
+        <button data-target="15" class="wall-btn">15</button>
+      </div>
       <div class="rival-toggle settings-group hidden" role="group" aria-label="CPU rival">
         <span class="hint">RIVAL</span>
         <button data-rival="drifter" class="wall-btn">DRIFTER</button>
@@ -90,7 +97,7 @@
         <span class="hint">COLOR</span>
       </div>
       <div id="leaderboard" class="leaderboard hidden"></div>
-      <p class="hint" id="version">v0.13.0</p>
+      <p class="hint" id="version">v0.14.0</p>
     </section>
 
     <!-- Countdown overlay -->
@@ -109,25 +116,25 @@
 
   <!-- ?v= must match the version shown in the menu; bump both together so
        browsers refetch scripts instead of reusing stale cached copies -->
-  <script src="src/geometry.js?v=0.13.0"></script>
-  <script src="src/snake.js?v=0.13.0"></script>
-  <script src="src/board.js?v=0.13.0"></script>
-  <script src="src/trail.js?v=0.13.0"></script>
-  <script src="src/projectile.js?v=0.13.0"></script>
-  <script src="src/powerups.js?v=0.13.0"></script>
-  <script src="src/walls.js?v=0.13.0"></script>
-  <script src="src/round.js?v=0.13.0"></script>
-  <script src="src/match.js?v=0.13.0"></script>
-  <script src="src/gauntlet.js?v=0.13.0"></script>
-  <script src="src/cpu.js?v=0.13.0"></script>
-  <script src="src/speed.js?v=0.13.0"></script>
-  <script src="src/leaderboard.js?v=0.13.0"></script>
-  <script src="src/audio.js?v=0.13.0"></script>
-  <script src="src/sprites.js?v=0.13.0"></script>
-  <script src="src/renderer.js?v=0.13.0"></script>
-  <script src="src/input.js?v=0.13.0"></script>
-  <script src="src/net.js?v=0.13.0"></script>
-  <script src="src/online.js?v=0.13.0"></script>
-  <script src="src/main.js?v=0.13.0"></script>
+  <script src="src/geometry.js?v=0.14.0"></script>
+  <script src="src/snake.js?v=0.14.0"></script>
+  <script src="src/board.js?v=0.14.0"></script>
+  <script src="src/trail.js?v=0.14.0"></script>
+  <script src="src/projectile.js?v=0.14.0"></script>
+  <script src="src/powerups.js?v=0.14.0"></script>
+  <script src="src/walls.js?v=0.14.0"></script>
+  <script src="src/round.js?v=0.14.0"></script>
+  <script src="src/match.js?v=0.14.0"></script>
+  <script src="src/gauntlet.js?v=0.14.0"></script>
+  <script src="src/cpu.js?v=0.14.0"></script>
+  <script src="src/speed.js?v=0.14.0"></script>
+  <script src="src/leaderboard.js?v=0.14.0"></script>
+  <script src="src/audio.js?v=0.14.0"></script>
+  <script src="src/sprites.js?v=0.14.0"></script>
+  <script src="src/renderer.js?v=0.14.0"></script>
+  <script src="src/input.js?v=0.14.0"></script>
+  <script src="src/net.js?v=0.14.0"></script>
+  <script src="src/online.js?v=0.14.0"></script>
+  <script src="src/main.js?v=0.14.0"></script>
 </body>
 </html>
