@@ -110,31 +110,59 @@
     return canvas;
   }
 
-  // --- bolt: elongated plasma round, flicker variants, facing right ---------
+  // --- bolt: jagged high-voltage lightning, flicker variants, facing right --
   const BOLT_FRAMES = 3;
+
+  // Tiny deterministic PRNG so each flicker variant gets a stable zigzag
+  // shape instead of a new random jitter every bake.
+  function seededRand(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => {
+      s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+      return (s >>> 0) / 4294967296;
+    };
+  }
 
   function bakeBolt(cell, color, seed) {
     const canvas = makeTile(cell, 3), ctx = canvas.getContext('2d');
     const u = cell * SCALE, cx = canvas.width / 2, cy = cx;
     ctx.translate(cx, cy);
-    const flick = 1 + 0.12 * Math.sin(seed * 2.4); // per-variant size jitter
-    // tail streak: tapered, fading behind the round
-    const tg = ctx.createLinearGradient(-u * 1.1 * flick, 0, u * 0.2, 0);
-    tg.addColorStop(0, 'rgba(0,0,0,0)'); tg.addColorStop(1, color);
-    ctx.fillStyle = tg; ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.moveTo(-u * 1.1 * flick, 0);
-    ctx.quadraticCurveTo(-u * 0.3, -u * 0.14, u * 0.15, -u * 0.10);
-    ctx.lineTo(u * 0.15, u * 0.10);
-    ctx.quadraticCurveTo(-u * 0.3, u * 0.14, -u * 1.1 * flick, 0);
-    ctx.closePath(); ctx.fill();
+    const rand = seededRand(seed * 97 + 13);
+    // zigzag spine from tail to nose; nose stays at the +x end so the
+    // existing atan2(dir)-based rotation at blit time still points it forward
+    const tailX = -u * 0.95, noseX = u * 0.4, segments = 6;
+    const spine = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const jitter = (i === 0 || i === segments) ? 0 : (rand() - 0.5) * u * 0.32;
+      spine.push([tailX + (noseX - tailX) * t, jitter]);
+    }
+    const path = (points) => {
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    };
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // layered strokes: wide colored glow -> tighter glow -> white-hot core
+    const layers = [
+      { w: 0.42, a: 0.28, c: color, blur: 1.0 },
+      { w: 0.22, a: 0.75, c: color, blur: 0.5 },
+      { w: 0.09, a: 1.0, c: '#ffffff', blur: 0.15 },
+    ];
+    for (const l of layers) {
+      ctx.globalAlpha = l.a; ctx.strokeStyle = l.c; ctx.lineWidth = u * l.w;
+      ctx.shadowColor = l.c; ctx.shadowBlur = u * l.blur;
+      path(spine); ctx.stroke();
+    }
+    // one small fork branching off the spine, like a real strike's offshoot
+    const forkFrom = spine[2 + (seed % 2)];
+    const forkAngle = (rand() - 0.5) * Math.PI * 0.6;
+    const forkLen = u * (0.18 + rand() * 0.12);
+    const fork = [forkFrom, [forkFrom[0] + Math.cos(forkAngle) * forkLen, forkFrom[1] + Math.sin(forkAngle) * forkLen]];
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = u * 0.05;
+    ctx.shadowColor = color; ctx.shadowBlur = u * 0.35;
+    path(fork); ctx.stroke();
     ctx.globalAlpha = 1;
-    // plasma sheath
-    ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = u * 0.8;
-    ctx.beginPath(); ctx.ellipse(u * 0.12, 0, u * 0.42 * flick, u * 0.20, 0, 0, Math.PI * 2); ctx.fill();
-    // white-hot core
-    ctx.fillStyle = '#ffffff'; ctx.shadowBlur = u * 0.4;
-    ctx.beginPath(); ctx.ellipse(u * 0.16, 0, u * 0.26 * flick, u * 0.11, 0, 0, Math.PI * 2); ctx.fill();
     return canvas;
   }
 
