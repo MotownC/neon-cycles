@@ -45,6 +45,7 @@
     turbo: [freshTurbo(), freshTurbo()],
     rival: 'aggressor',
     gauntlet: null, // active Gauntlet run, only in gauntlet mode
+    online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
   };
 
   // Both CPU-driven modes share the same input/AI plumbing; they differ only
@@ -53,6 +54,10 @@
   function rivalKey() {
     return state.mode === 'gauntlet' ? Gauntlet.STAGES[state.gauntlet.stage] : state.rival;
   }
+
+  // Online mode is only live once a start message has populated state.online
+  // (after an abort we can be back at the menu with mode still 'online').
+  function isOnline() { return state.mode === 'online' && state.online !== null; }
 
   // Field-debug ring buffer: recent inputs and applied directions, dumped to
   // the console on every crash so control issues can be diagnosed from a
@@ -69,12 +74,26 @@
       ? [{ start: { x: (COLS/2)|0, y: (ROWS/2)|0 }, direction: 'right' }]
       : [{ start: { x: (COLS*0.25)|0, y: (ROWS/2)|0 }, direction: 'right' },
          { start: { x: (COLS*0.75)|0, y: (ROWS/2)|0 }, direction: 'left' }];
-    const walls = Walls.generate(COLS, ROWS, state.wallDensity);
-    state.round = Round.createRound(COLS, ROWS, specs, walls, state.trailMode);
+    const online = isOnline() ? state.online : null;
+    const walls = Walls.generate(COLS, ROWS,
+      online ? online.settings.wallDensity : state.wallDensity,
+      online ? Net.mulberry32((online.seed + online.roundNumber) >>> 0) : Math.random);
+    state.round = Round.createRound(COLS, ROWS, specs, walls,
+      online ? online.settings.trailMode : state.trailMode);
+    if (online) {
+      online.session = Net.createSession(online.youAre);
+      online.pending = [];
+      online.stallSince = null;
+      online.lagging = false;
+    }
     // A rival rides its signature color unless the player claimed it first.
     const rivalColor = vsCpu() ? RIVALS[rivalKey()].color : null;
     state.colors = [state.playerColor,
       rivalColor && rivalColor !== state.playerColor ? rivalColor : Renderer.pickOpponentColor(state.playerColor)];
+    if (online && online.youAre === 1) {
+      // Colors are local cosmetics: your menu pick always paints YOUR snake.
+      state.colors = [Renderer.pickOpponentColor(state.playerColor), state.playerColor];
+    }
     state.borderColor = Renderer.randomBorderColor();
     state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
     state.flashes = [];
@@ -137,11 +156,18 @@
       hud.innerHTML = `<span style="color:${c0}">YOU ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}${statusTag(0, c0)}</span>`
         + `<span style="color:${c1}">${RIVALS[rivalKey()].name} ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}${statusTag(1, c1)}${stageTag}</span>`;
     }
+    else if (isOnline()) {
+      const y = state.online.youAre;
+      const lag = state.online.lagging ? ` <span style="opacity:.5;font-size:14px">CONNECTION LAGGING…</span>` : '';
+      hud.innerHTML = `<span style="color:${state.colors[y]}">YOU ${state.match.scores[y]}</span>`
+        + `<span style="color:${state.colors[1 - y]}">FRIEND ${state.match.scores[1 - y]}${lag}</span>`;
+    }
     else hud.innerHTML = `<span style="color:${c0}">P1 ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}${statusTag(0, c0)}</span>`
       + `<span style="color:${c1}">P2 ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}${statusTag(1, c1)}</span>`;
   }
 
   function label(index) {
+    if (isOnline()) return index === state.online.youAre ? 'YOU' : 'FRIEND';
     if (!vsCpu()) return `PLAYER ${index + 1}`;
     return index === 0 ? 'YOU' : RIVALS[rivalKey()].name;
   }
@@ -285,24 +311,27 @@
     if (state.phase !== 'playing') return;
     const dt = Math.min(now - state.last, 250); state.last = now;
     const dtSec = dt / 1000;
-    state.elapsed += dtSec;
+    if (!isOnline()) state.elapsed += dtSec; // online: elapsed advances per confirmed tick below
     updateTurbo(dtSec);
     Audio.setIntensity(Math.min(1, state.elapsed / 45));
 
-    const boltInt = Speed.tickInterval(state.elapsed) / 3;
-    state.boltAcc += dt;
-    while (state.boltAcc >= boltInt) {
-      state.boltAcc -= boltInt;
-      const outcomes = Projectile.advanceBolts(state.round, state.elapsed);
-      outcomes.forEach((o) => {
-        state.flashes.push({ pos: o.pos, type: o.type, start: state.elapsed });
-        o.type === 'bounce' ? Audio.bounceSfx() : Audio.derezSfx();
-      });
-    }
-    state.flashes = state.flashes.filter((f) => state.elapsed - f.start < Renderer.FLASH_DURATION_SEC);
+    let frozen = [];
+    if (!isOnline()) {
+      const boltInt = Speed.tickInterval(state.elapsed) / 3;
+      state.boltAcc += dt;
+      while (state.boltAcc >= boltInt) {
+        state.boltAcc -= boltInt;
+        const outcomes = Projectile.advanceBolts(state.round, state.elapsed);
+        outcomes.forEach((o) => {
+          state.flashes.push({ pos: o.pos, type: o.type, start: state.elapsed });
+          o.type === 'bounce' ? Audio.bounceSfx() : Audio.derezSfx();
+        });
+      }
+      state.flashes = state.flashes.filter((f) => state.elapsed - f.start < Renderer.FLASH_DURATION_SEC);
 
-    Powerups.maybeSpawn(state.round, state.elapsed);
-    const frozen = Powerups.frozenIndices(state.round, state.elapsed);
+      Powerups.maybeSpawn(state.round, state.elapsed);
+      frozen = Powerups.frozenIndices(state.round, state.elapsed);
+    }
 
     // A head shot kills between snake ticks, so resolve it here rather than
     // waiting for the next tick's resolve.
@@ -312,7 +341,36 @@
     const normalInt = Speed.tickInterval(state.elapsed);
     const turboInt = Speed.turboInterval(state.elapsed);
 
-    if (!state.turboEnabled) {
+    if (isOnline()) {
+      const o = state.online;
+      // Cap the accumulator so a long stall doesn't fast-forward a burst of
+      // ticks when input resumes (both sides stall together within INPUT_DELAY).
+      state.acc = Math.min(state.acc + dt, 4 * Speed.BASE_MS);
+      let interval = Speed.tickInterval(state.elapsed);
+      while (state.acc >= interval && Net.canTick(o.session)) {
+        state.acc -= interval;
+        const tickNum = o.session.next;
+        let hash;
+        if (tickNum > 0 && tickNum % Net.HASH_EVERY === 0) {
+          hash = Net.stateHash(state.round);
+          if (Net.noteLocalHash(o.session, tickNum, hash) === 'desync') return onlineAbort('GAME OUT OF SYNC — PLEASE REFRESH');
+        }
+        Online.send(Net.localTurns(o.session, o.pending.splice(0), hash));
+        const { turns } = Net.takeTick(o.session);
+        turns.forEach((dirs, i) => dirs.forEach((d) => Snake.bufferDirection(state.round.snakes[i], d)));
+        Round.tick(state.round, state.elapsed);
+        state.elapsed += interval / 1000; // simulated time: identical on both machines
+        interval = Speed.tickInterval(state.elapsed);
+        tr({ t: now | 0,
+          tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
+          pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
+        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+      }
+      if (state.acc >= interval && !Net.canTick(o.session)) {
+        if (o.stallSince === null) o.stallSince = now;
+        o.lagging = now - o.stallSince > 500;
+      } else { o.stallSince = null; o.lagging = false; }
+    } else if (!state.turboEnabled) {
       // Original single-accumulator path (no turbo feature)
       state.acc += dt;
       while (state.acc >= normalInt) {
@@ -356,10 +414,12 @@
       }
     }
 
-    Powerups.claim(state.round, state.elapsed).forEach((c) => {
-      state.flashes.push({ pos: c.pos, type: 'pickup', start: state.elapsed });
-      Audio.pickupSfx();
-    });
+    if (!isOnline()) {
+      Powerups.claim(state.round, state.elapsed).forEach((c) => {
+        state.flashes.push({ pos: c.pos, type: 'pickup', start: state.elapsed });
+        Audio.pickupSfx();
+      });
+    }
 
     updateHud();
     Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas);
@@ -373,11 +433,52 @@
   }
 
   function onAction() {
+    if (isOnline()) {
+      if (state.phase === 'gameover') { showMenu(); }
+      else if (state.phase === 'roundover' && !state.online.localReady) {
+        state.online.localReady = true;
+        Online.send({ type: 'ready' });
+        goTitle.textContent = 'WAITING FOR OPPONENT…';
+        maybeStartNextOnlineRound();
+      }
+      return;
+    }
     if (state.phase === 'gameover') { showMenu(); }
     else if (state.phase === 'roundover') { newRound(); startCountdown(); }
   }
 
+  function maybeStartNextOnlineRound() {
+    const o = state.online;
+    if (!o || !o.localReady || !o.remoteReady) return;
+    o.localReady = o.remoteReady = false;
+    o.roundNumber += 1;
+    newRound(); startCountdown();
+  }
+
+  function beginOnlineGame(start) {
+    state.mode = 'online';
+    state.gauntlet = null;
+    state.online = { seed: start.seed >>> 0, settings: start.settings, youAre: start.youAre,
+      session: null, pending: [], roundNumber: 0, localReady: false, remoteReady: false,
+      stallSince: null, lagging: false };
+    state.match = Match.createMatch(MATCH_TARGET);
+    newRound(); startCountdown();
+  }
+
+  function onlineAbort(message) {
+    Online.disconnect();
+    state.online = null;
+    if (state.phase === 'menu') { setOnlineStatus(message); return; }
+    Audio.stop();
+    show(gameover);
+    goTitle.textContent = message;
+    goBody.innerHTML = '';
+    el('go-continue').textContent = 'PRESS ENTER FOR MENU';
+    state.phase = 'gameover';
+  }
+
   function showMenu() {
+    if (state.online) { Online.disconnect(); state.online = null; }
     state.phase = 'menu'; hud.classList.add('hidden'); Audio.stop();
     el('leaderboard').innerHTML = renderBoard(Leaderboard.load(window.localStorage));
     const best = Gauntlet.loadBest(window.localStorage);
@@ -390,6 +491,15 @@
   // wire input + menu buttons
   Input.attach({
     onDirection: (i, dir) => {
+      if (isOnline()) {
+        // Both key sets steer the local snake online; turns are queued for
+        // the lockstep pipeline instead of touching the snake directly.
+        if (state.phase !== 'playing') return;
+        const p = state.online.pending;
+        if (p.length < 3 && p[p.length - 1] !== dir) p.push(dir);
+        tr({ t: performance.now() | 0, key: dir, online: true, pending: p.join('<') });
+        return;
+      }
       const steerable = state.phase === 'playing' && state.round.snakes[i]
         && !(i === 1 && vsCpu());
       if (!steerable) {
@@ -406,6 +516,7 @@
     },
     onAction,
     onTurbo: (i, pressed) => {
+      if (isOnline()) return;
       if (state.phase !== 'playing' || !state.turboEnabled) return;
       if (!state.round.snakes[i] || !state.round.snakes[i].alive) return;
       // In CPU-driven modes, ignore P2 turbo (rivals don't turbo)
@@ -413,6 +524,7 @@
       state.turbo[i].held = pressed;
     },
     onFire: (i) => {
+      if (isOnline()) return;
       if (state.phase !== 'playing' || !state.round.snakes[i] || !state.round.snakes[i].alive) return;
       if (i === 1 && vsCpu()) return; // rivals fire themselves via CPU.shouldFire
       const before = state.round.firedCount[i];
@@ -462,6 +574,52 @@
     state.playerColor = btn.dataset.color;
     colorButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
+
+  // --- online menu wiring ---
+  const setOnlineStatus = (text) => { el('online-status').textContent = text; };
+
+  const onlineHandlers = {
+    onHosted: (msg) => setOnlineStatus(`ROOM CODE: ${msg.code} — SEND IT TO YOUR FRIEND`),
+    onStart: (msg) => beginOnlineGame(msg),
+    onInput: (msg) => {
+      if (!isOnline() || !state.online.session) return;
+      Net.remoteInput(state.online.session, msg);
+      if (msg.hash !== undefined
+        && Net.noteRemoteHash(state.online.session, msg.t - Net.INPUT_DELAY, msg.hash) === 'desync') {
+        onlineAbort('GAME OUT OF SYNC — PLEASE REFRESH');
+      }
+    },
+    onReady: () => { if (isOnline()) { state.online.remoteReady = true; maybeStartNextOnlineRound(); } },
+    onJoinError: (msg) => setOnlineStatus(msg.reason),
+    onOpponentLeft: () => { if (isOnline() && state.phase !== 'gameover') onlineAbort('OPPONENT DISCONNECTED'); },
+    onVersionMismatch: () => setOnlineStatus('NEW VERSION AVAILABLE — REFRESH THE PAGE'),
+    onClosed: () => {
+      if (isOnline() && state.phase !== 'gameover') onlineAbort('CONNECTION LOST');
+      else setOnlineStatus('');
+    },
+  };
+
+  async function onlineConnectAnd(action) {
+    setOnlineStatus('CONNECTING…');
+    const slow = setTimeout(() => setOnlineStatus('WAKING UP SERVER… (CAN TAKE ~30S)'), 3000);
+    try {
+      await Online.connect(onlineHandlers);
+      action();
+    } catch (err) {
+      setOnlineStatus(err.message);
+    } finally {
+      clearTimeout(slow);
+    }
+  }
+
+  el('online-toggle').addEventListener('click', () => el('online-panel').classList.toggle('hidden'));
+  el('online-host').addEventListener('click', () => onlineConnectAnd(() =>
+    Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode } })));
+  el('online-join').addEventListener('click', () => {
+    const code = el('online-code-input').value.trim().toUpperCase();
+    if (code.length !== 4) return setOnlineStatus('ENTER THE 4-LETTER CODE');
+    onlineConnectAnd(() => Online.send({ type: 'join', code }));
+  });
 
   window.addEventListener('resize', () => {
     if (state.round) {
