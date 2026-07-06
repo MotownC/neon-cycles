@@ -35,3 +35,75 @@ test('squareRing clips cells outside the board', () => {
   }
   assert.ok(cells.length > 0 && cells.length < 8);
 });
+
+const B = require('../src/board');
+
+function seeded(seed) {
+  let s = seed;
+  return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+}
+
+function makeRound(width, height, headPos) {
+  const board = B.createBoard(width, height, []);
+  const snake = { alive: true, body: [headPos] };
+  return { board, snakes: [snake] };
+}
+
+test('createHazard starts with no telegraph, first event at 15s', () => {
+  const hz = H.createHazard(20, 14);
+  assert.strictEqual(hz.telegraph, null);
+  assert.strictEqual(hz.nextEventAt, 15);
+  assert.strictEqual(hz.frozen, false);
+});
+
+test('advance schedules a telegraph at the event time but does not solidify yet', () => {
+  const round = makeRound(20, 14, { x: 0, y: 0 });
+  const hz = H.createHazard(20, 14);
+  H.advance(round, hz, 15, () => 0.9); // 0.9 >= 0.5 -> 'square'
+  assert.ok(hz.telegraph);
+  assert.strictEqual(hz.telegraph.type, 'square');
+  assert.strictEqual(round.board.walls.length, 0); // not solid yet
+});
+
+test('advance solidifies the telegraphed cells one second later', () => {
+  const round = makeRound(20, 14, { x: 0, y: 0 });
+  const hz = H.createHazard(20, 14);
+  H.advance(round, hz, 15, () => 0.1); // 0.1 < 0.5 -> 'border'
+  H.advance(round, hz, 16, () => 0.1);
+  assert.strictEqual(hz.telegraph, null);
+  assert.ok(round.board.walls.length > 0);
+  assert.ok(B.isLit(round.board, { x: 0, y: 0 }));
+});
+
+test('a snake head on a solidifying cell dies and is flagged', () => {
+  const round = makeRound(20, 14, { x: 0, y: 0 }); // corner is on the border ring at margin 0
+  const hz = H.createHazard(20, 14);
+  H.advance(round, hz, 15, () => 0.1); // border
+  H.advance(round, hz, 16, () => 0.1); // solidify
+  assert.strictEqual(round.snakes[0].alive, false);
+  assert.strictEqual(round.snakes[0].crushedByHazard, true);
+});
+
+test('a snake head elsewhere survives the same event', () => {
+  const round = makeRound(20, 14, { x: 10, y: 7 }); // dead center, far from the border ring
+  const hz = H.createHazard(20, 14);
+  H.advance(round, hz, 15, () => 0.1);
+  H.advance(round, hz, 16, () => 0.1);
+  assert.strictEqual(round.snakes[0].alive, true);
+});
+
+test('advance freezes once the safety floor is reached and stops changing the board', () => {
+  const round = makeRound(20, 14, { x: 10, y: 7 });
+  const hz = H.createHazard(20, 14);
+  let t = 15;
+  const rand = seeded(1);
+  for (let i = 0; i < 50 && !hz.frozen; i++) {
+    H.advance(round, hz, t, rand);      // schedule (or freeze)
+    if (hz.telegraph) H.advance(round, hz, t + 1, rand); // solidify
+    t += 15;
+  }
+  assert.strictEqual(hz.frozen, true);
+  const wallsBefore = round.board.walls.length;
+  H.advance(round, hz, t + 100, rand);
+  assert.strictEqual(round.board.walls.length, wallsBefore); // no further changes
+});

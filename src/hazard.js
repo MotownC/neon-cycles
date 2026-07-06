@@ -1,8 +1,11 @@
 (function (root, factory) {
-  const api = factory();
+  const deps = typeof require === 'function'
+    ? { B: require('./board') }
+    : { B: window.Board };
+  const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function () {
+})(this, function ({ B }) {
   // Perimeter of the rectangle inset by `m` cells on every side — i.e. the
   // ring that becomes solid on the (m+1)th border-shrink event.
   function borderRing(width, height, m) {
@@ -34,5 +37,83 @@
     return cells;
   }
 
-  return { __name: 'Hazard', borderRing, squareRing };
+  const EVENT_INTERVAL_SEC = 15;
+  const TELEGRAPH_SEC = 1;
+  const SAFETY_FLOOR_GAP = 6;
+
+  function createHazard(width, height) {
+    return {
+      margin: 0,
+      squareRadius: 0,
+      cx: (width / 2) | 0,
+      cy: (height / 2) | 0,
+      nextEventAt: EVENT_INTERVAL_SEC,
+      telegraph: null,
+      frozen: false,
+    };
+  }
+
+  // Conservative approximation of "how much open space is left between the
+  // shrinking border and the growing square" — not exact geometry, just
+  // enough to stop before the two can plausibly meet.
+  function computeGap(width, height, margin, squareRadius) {
+    const innerHalfWidth = width / 2 - margin;
+    const innerHalfHeight = height / 2 - margin;
+    return Math.min(innerHalfWidth, innerHalfHeight) - squareRadius;
+  }
+
+  function solidify(round, hazard) {
+    const { board, snakes } = round;
+    const { cells } = hazard.telegraph;
+    for (const c of cells) {
+      if (!board.walls) board.walls = [];
+      // Light unconditionally (idempotent) so a hazard ring permanently
+      // claims the cell even if it was previously just trail (which can
+      // later be trimmed/unlit); only guard against duplicate wall entries.
+      B.light(board, c);
+      if (!board.walls.some((w) => w.x === c.x && w.y === c.y)) board.walls.push(c);
+    }
+    hazard.telegraph = null;
+    for (const snake of snakes) {
+      if (!snake.alive) continue;
+      const head = snake.body[snake.body.length - 1];
+      if (cells.some((c) => c.x === head.x && c.y === head.y)) {
+        snake.alive = false;
+        snake.crushedByHazard = true;
+      }
+    }
+  }
+
+  function scheduleNext(round, hazard, elapsedSec, rand) {
+    const { board } = round;
+    const gap = computeGap(board.width, board.height, hazard.margin, hazard.squareRadius);
+    if (gap <= SAFETY_FLOOR_GAP) { hazard.frozen = true; return; }
+    const type = rand() < 0.5 ? 'border' : 'square';
+    let cells;
+    if (type === 'border') {
+      cells = borderRing(board.width, board.height, hazard.margin);
+      hazard.margin += 1;
+    } else {
+      const r = hazard.squareRadius + 1;
+      cells = squareRing(board.width, board.height, hazard.cx, hazard.cy, r);
+      hazard.squareRadius = r;
+    }
+    hazard.telegraph = { cells, type, solidifyAt: elapsedSec + TELEGRAPH_SEC };
+    hazard.nextEventAt = elapsedSec + EVENT_INTERVAL_SEC;
+  }
+
+  function advance(round, hazard, elapsedSec, rand = Math.random) {
+    if (hazard.frozen) return;
+    if (hazard.telegraph) {
+      if (elapsedSec >= hazard.telegraph.solidifyAt) solidify(round, hazard);
+      return;
+    }
+    if (elapsedSec >= hazard.nextEventAt) scheduleNext(round, hazard, elapsedSec, rand);
+  }
+
+  return {
+    __name: 'Hazard',
+    EVENT_INTERVAL_SEC, TELEGRAPH_SEC, SAFETY_FLOOR_GAP,
+    borderRing, squareRing, createHazard, advance,
+  };
 });
