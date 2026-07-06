@@ -1,6 +1,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 const Net = require('../src/net');
+const Round = require('../src/round');
 
 test('mulberry32 is deterministic per seed and emits [0,1)', () => {
   const a = Net.mulberry32(42), b = Net.mulberry32(42), c = Net.mulberry32(43);
@@ -70,4 +71,35 @@ test('paired sessions produce identical tick/turn streams', () => {
   const shared = Math.min(gotA.length, gotB.length);
   assert.ok(shared >= 8, `expected at least 8 shared ticks, got ${shared}`);
   assert.deepStrictEqual(gotA.slice(0, shared), gotB.slice(0, shared));
+});
+
+test('stateHash matches for identical rounds and diverges after a tick', () => {
+  const specs = [
+    { start: { x: 16, y: 20 }, direction: 'right' },
+    { start: { x: 48, y: 20 }, direction: 'left' },
+  ];
+  const a = Round.createRound(64, 40, specs);
+  const b = Round.createRound(64, 40, specs);
+  assert.strictEqual(Net.stateHash(a), Net.stateHash(b));
+  Round.tick(a, 0);
+  assert.notStrictEqual(Net.stateHash(a), Net.stateHash(b));
+});
+
+test('hash notes are pending until both sides report, then compare', () => {
+  const s = Net.createSession(0);
+  assert.strictEqual(Net.noteLocalHash(s, 60, 123), 'pending');
+  assert.strictEqual(Net.noteRemoteHash(s, 60, 123), 'ok');
+  // arrival order must not matter
+  assert.strictEqual(Net.noteRemoteHash(s, 120, 5), 'pending');
+  assert.strictEqual(Net.noteLocalHash(s, 120, 5), 'ok');
+  // mismatch flags a desync
+  assert.strictEqual(Net.noteLocalHash(s, 180, 1), 'pending');
+  assert.strictEqual(Net.noteRemoteHash(s, 180, 2), 'desync');
+});
+
+test('localTurns embeds the optional hash in the message', () => {
+  const s = Net.createSession(0);
+  assert.strictEqual(Net.localTurns(s, []).hash, undefined);
+  Net.takeTick(s);
+  assert.strictEqual(Net.localTurns(s, [], 999).hash, 999);
 });

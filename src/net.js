@@ -56,6 +56,42 @@
     return { tick: t, turns };
   }
 
+  // Desync tripwire: each side records its own hash for a tick and the
+  // opponent's when it arrives; once both exist they are compared exactly
+  // once. 'pending' until then. This should never fire in practice — it
+  // exists so a nondeterminism bug fails loudly instead of silently playing
+  // two different games.
+  function noteHash(session, tick, hash, slot) {
+    const entry = session.hashes.get(tick) || {};
+    entry[slot] = hash;
+    if (entry.mine === undefined || entry.theirs === undefined) {
+      session.hashes.set(tick, entry);
+      return 'pending';
+    }
+    session.hashes.delete(tick);
+    return entry.mine === entry.theirs ? 'ok' : 'desync';
+  }
+  function noteLocalHash(session, tick, hash) { return noteHash(session, tick, hash, 'mine'); }
+  function noteRemoteHash(session, tick, hash) { return noteHash(session, tick, hash, 'theirs'); }
+
+  // Cheap FNV-1a digest of the parts of sim state that would drift first if
+  // the machines ever disagreed: heads, headings, alive flags, trail sizes.
+  function stateHash(round) {
+    let str = '';
+    for (const s of round.snakes) {
+      const h = s.body[s.body.length - 1];
+      str += h.x + ',' + h.y + ',' + s.direction + ',' + (s.alive ? 1 : 0) + ',' + s.body.length + ';';
+    }
+    str += round.board.lit.size;
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return hash >>> 0;
+  }
+
   return { __name: 'Net', PROTOCOL_VERSION, INPUT_DELAY, HASH_EVERY,
-    mulberry32, createSession, localTurns, remoteInput, canTick, takeTick };
+    mulberry32, createSession, localTurns, remoteInput, canTick, takeTick,
+    noteLocalHash, noteRemoteHash, stateHash };
 });
