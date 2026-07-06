@@ -576,6 +576,11 @@
     colorButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
+  const settingsGroups = document.querySelectorAll('.settings-group');
+  el('settings-toggle').addEventListener('click', () =>
+    settingsGroups.forEach((g) => g.classList.toggle('hidden')));
+  el('leaderboard-toggle').addEventListener('click', () => el('leaderboard').classList.toggle('hidden'));
+
   // --- online menu wiring ---
   const setOnlineStatus = (text) => { el('online-status').textContent = text; };
 
