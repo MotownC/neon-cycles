@@ -49,6 +49,7 @@
     turboEnabled: false,
     turbo: [freshTurbo(), freshTurbo()],
     rival: 'aggressor',
+    activeRival: null, // resolved rival key for the current round, when rival === 'random'
     gauntlet: null, // active Gauntlet run, only in gauntlet mode
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
     attract: null, // decorative menu-screen loop; see initAttract()
@@ -58,7 +59,15 @@
   // in which rival is at the controls and what happens when a match ends.
   function vsCpu() { return state.mode === 'cpu' || state.mode === 'gauntlet'; }
   function rivalKey() {
-    return state.mode === 'gauntlet' ? Gauntlet.STAGES[state.gauntlet.stage] : state.rival;
+    if (state.mode === 'gauntlet') return Gauntlet.STAGES[state.gauntlet.stage];
+    return state.rival === 'random' ? state.activeRival : state.rival;
+  }
+
+  // Reroll the CPU rival for a new round when the player picked RANDOM,
+  // avoiding an immediate repeat so it actually reads as "a different rival".
+  function rollRival() {
+    const keys = Object.keys(RIVALS).filter((k) => k !== state.activeRival);
+    state.activeRival = keys[(Math.random() * keys.length) | 0];
   }
 
   // Online mode is only live once a start message has populated state.online
@@ -92,6 +101,7 @@
       online.stallSince = null;
       online.lagging = false;
     }
+    if (state.mode === 'cpu' && state.rival === 'random') rollRival();
     // A rival rides its signature color unless the player claimed it first.
     const rivalColor = vsCpu() ? RIVALS[rivalKey()].color : null;
     state.colors = [state.playerColor,
@@ -368,6 +378,17 @@
     return t.held && t.fuel > 0 && t.cooldown <= 0;
   }
 
+  // Claim pickups right after each individual tick (not once per animation
+  // frame) so a shield/phase grabbed on tick N is already active if the same
+  // frame runs a colliding tick N+1 (happens once the tick interval shrinks
+  // enough for a frame to cover more than one tick).
+  function claimPickups() {
+    Powerups.claim(state.round, state.elapsed).forEach((c) => {
+      state.flashes.push({ pos: c.pos, type: 'pickup', start: state.elapsed });
+      Audio.pickupSfx();
+    });
+  }
+
   function loop(now) {
     state.raf = requestAnimationFrame(loop);
     if (state.phase === 'menu') {
@@ -455,6 +476,7 @@
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
+        claimPickups();
         if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
       }
     } else {
@@ -476,16 +498,10 @@
             }
           }
           Round.tickSingle(state.round, i, state.elapsed);
+          claimPickups();
           if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
         }
       }
-    }
-
-    if (!isOnline()) {
-      Powerups.claim(state.round, state.elapsed).forEach((c) => {
-        state.flashes.push({ pos: c.pos, type: 'pickup', start: state.elapsed });
-        Audio.pickupSfx();
-      });
     }
 
     updateHud();
