@@ -95,6 +95,7 @@
       online ? Net.mulberry32((online.seed + online.roundNumber) >>> 0) : Math.random);
     state.round = Round.createRound(COLS, ROWS, specs, walls,
       online ? online.settings.trailMode : state.trailMode);
+    state.round.hazard = state.mode === '1p' ? Hazard.createHazard(COLS, ROWS) : null;
     if (online) {
       online.session = Net.createSession(online.youAre);
       online.pending = [];
@@ -256,6 +257,7 @@
   function crashVerdicts() {
     return state.round.snakes.map((s) => {
       if (s.alive) return 'alive';
+      if (s.crushedByHazard) return 'caught by the closing arena';
       if (s.shotBy !== undefined) return `shot down by ${label(s.shotBy)}'s bolt`;
       const head = s.body[s.body.length - 1];
       const target = Geometry.nextHead(head, s.pendingDirection);
@@ -419,6 +421,7 @@
 
       Powerups.maybeSpawn(state.round, state.elapsed);
       frozen = Powerups.frozenIndices(state.round, state.elapsed);
+      if (state.mode === '1p') Hazard.advance(state.round, state.round.hazard, state.elapsed, Math.random);
     }
 
     // A head shot kills between snake ticks, so resolve it here rather than
