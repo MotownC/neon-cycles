@@ -108,6 +108,84 @@ test('a frozen snake does not consume its buffered direction queue', () => {
   assert.strictEqual(round.snakes[0].body.length, 1); // did not move
 });
 
+test('a shielded snake survives a trail hit, consumes the shield, and holds position', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  round.snakes[0].shield = true;
+  round.board.lit.add('6,5'); // wall directly ahead
+  R.tick(round, 1);
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].shield, false);
+  assert.strictEqual(round.snakes[0].body.length, 1); // did not advance
+});
+
+test('a shielded snake survives hitting the boundary', () => {
+  const round = setup(5, 5, [{ start: { x: 4, y: 2 }, direction: 'right' }]);
+  round.snakes[0].shield = true;
+  R.tick(round);
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].shield, false);
+});
+
+test('an unshielded snake still dies as before', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  round.board.lit.add('6,5');
+  R.tick(round);
+  assert.strictEqual(round.snakes[0].alive, false);
+});
+
+test('a shielded snake absorbing a head-on saves the other snake too', () => {
+  const round = setup(10, 10, [
+    { start: { x: 4, y: 5 }, direction: 'right' },
+    { start: { x: 6, y: 5 }, direction: 'left' },
+  ]);
+  round.snakes[0].shield = true;
+  R.tick(round); // both target {5,5}
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].shield, false);
+  assert.strictEqual(round.snakes[1].alive, true); // its target cell never got occupied
+});
+
+test('a phased snake ghosts through one trail cell and keeps moving', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  round.snakes[0].phase = true;
+  round.board.lit.add('6,5');
+  R.tick(round, 1);
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].phase, false);
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 6, y: 5, t: 1 });
+});
+
+test('phase does not save a snake from going out of bounds', () => {
+  const round = setup(5, 5, [{ start: { x: 4, y: 2 }, direction: 'right' }]);
+  round.snakes[0].phase = true;
+  R.tick(round);
+  assert.strictEqual(round.snakes[0].alive, false);
+  assert.strictEqual(round.snakes[0].phase, true); // never consumed; boundary isn't phaseable
+});
+
+test('tickSingle: a shielded snake survives a collision, consumes shield, stays put', () => {
+  const round = setup(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  round.snakes[0].shield = true;
+  round.board.lit.add('6,5');
+  R.tickSingle(round, 0, 1);
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].shield, false);
+  assert.strictEqual(round.snakes[0].body.length, 1);
+});
+
+test('tickSingle: a phased snake ghosts through another snake\'s trail', () => {
+  const round = setup(10, 10, [
+    { start: { x: 5, y: 5 }, direction: 'right' },
+    { start: { x: 6, y: 8 }, direction: 'right' },
+  ]);
+  round.snakes[0].phase = true;
+  round.snakes[1].body.push({ x: 6, y: 5, t: 0 }); // opponent trail directly ahead
+  R.tickSingle(round, 0, 1);
+  assert.strictEqual(round.snakes[0].alive, true);
+  assert.strictEqual(round.snakes[0].phase, false);
+  assert.deepStrictEqual(round.snakes[0].body[round.snakes[0].body.length - 1], { x: 6, y: 5, t: 1 });
+});
+
 test('tick with no frozenIndices argument behaves exactly as before (regression)', () => {
   const round = setup(10, 10, [
     { start: { x: 5, y: 5 }, direction: 'right' },

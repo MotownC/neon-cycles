@@ -160,5 +160,11 @@
     tone(t, 1800, 0.05, 'sine', 0.2); // no cutoff: a filter does nothing useful to a pure sine
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx };
+  function pickupSfx() {
+    ensure(); const t = ctx.currentTime;
+    tone(t, 700, 0.09, 'triangle', 0.3, 3000);
+    tone(t + 0.05, 1100, 0.12, 'triangle', 0.28, 3500);
+  }
+
+  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx };
 });
