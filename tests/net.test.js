@@ -2,6 +2,9 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 const Net = require('../src/net');
 const Round = require('../src/round');
+const Snake = require('../src/snake');
+const Walls = require('../src/walls');
+const Speed = require('../src/speed');
 
 test('mulberry32 is deterministic per seed and emits [0,1)', () => {
   const a = Net.mulberry32(42), b = Net.mulberry32(42), c = Net.mulberry32(43);
@@ -102,4 +105,36 @@ test('localTurns embeds the optional hash in the message', () => {
   assert.strictEqual(Net.localTurns(s, []).hash, undefined);
   Net.takeTick(s);
   assert.strictEqual(Net.localTurns(s, [], 999).hash, 999);
+});
+
+// Mirrors the online tick recipe in main.js: walls from the shared seed,
+// elapsed derived from tick count (never wall clock), turns applied via
+// bufferDirection before each tick.
+function playScripted(seed, script, trailMode) {
+  const rand = Net.mulberry32(seed);
+  const walls = Walls.generate(64, 40, 'med', rand);
+  const specs = [
+    { start: { x: 16, y: 20 }, direction: 'right' },
+    { start: { x: 48, y: 20 }, direction: 'left' },
+  ];
+  const round = Round.createRound(64, 40, specs, walls, trailMode);
+  let elapsed = 0;
+  for (let tick = 0; tick < 400 && !round.over; tick++) {
+    (script[tick] || []).forEach(([player, dir]) => Snake.bufferDirection(round.snakes[player], dir));
+    Round.tick(round, elapsed);
+    elapsed += Speed.tickInterval(elapsed) / 1000;
+  }
+  return round;
+}
+
+test('same seed and input log produce bit-identical rounds', () => {
+  for (const trailMode of ['tron', 'fade', 'classic']) {
+    const script = { 3: [[0, 'up']], 5: [[1, 'down']], 9: [[0, 'right']], 12: [[1, 'left'], [0, 'down']], 20: [[0, 'up']] };
+    const a = playScripted(1234, script, trailMode);
+    const b = playScripted(1234, script, trailMode);
+    assert.deepStrictEqual(a.snakes.map((s) => s.body), b.snakes.map((s) => s.body), trailMode);
+    assert.deepStrictEqual([...a.board.lit].sort(), [...b.board.lit].sort(), trailMode);
+    assert.strictEqual(a.winnerIndex, b.winnerIndex, trailMode);
+    assert.strictEqual(Net.stateHash(a), Net.stateHash(b), trailMode);
+  }
 });
