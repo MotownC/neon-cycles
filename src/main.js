@@ -479,6 +479,7 @@
 
   function showMenu() {
     if (state.online) { Online.disconnect(); state.online = null; }
+    setOnlineStatus(''); // any room code shown is stale once we're back here
     state.phase = 'menu'; hud.classList.add('hidden'); Audio.stop();
     el('leaderboard').innerHTML = renderBoard(Leaderboard.load(window.localStorage));
     const best = Gauntlet.loadBest(window.localStorage);

@@ -7,6 +7,8 @@
   // logic lives in net.js; this file only moves messages.
   let ws = null;
   let handlers = {};
+  let keepalive = null; // hosted proxies (e.g. Render) drop idle sockets; a
+                        // waiting host can sit for minutes before the friend joins
 
   const ROUTES = {
     hosted: 'onHosted', start: 'onStart', input: 'onInput', ready: 'onReady',
@@ -23,9 +25,14 @@
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const socket = new WebSocket(proto + '//' + window.location.host);
       ws = socket;
-      socket.onopen = () => { send({ type: 'hello', v: Net.PROTOCOL_VERSION }); resolve(); };
+      socket.onopen = () => {
+        send({ type: 'hello', v: Net.PROTOCOL_VERSION });
+        keepalive = setInterval(() => send({ type: 'ping' }), 30000);
+        resolve();
+      };
       socket.onerror = () => { if (ws === socket) { ws = null; reject(new Error('COULD NOT REACH SERVER')); } };
       socket.onclose = () => {
+        clearInterval(keepalive);
         if (ws !== socket) return; // deliberate disconnect() already cleaned up
         ws = null;
         if (handlers.onClosed) handlers.onClosed();

@@ -21,7 +21,12 @@ function createGameServer() {
     if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
     fs.readFile(filePath, (err, data) => {
       if (err) { res.writeHead(404); res.end('not found'); return; }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
+      // no-store keeps index.html (which has no ?v= of its own) from going
+      // stale after a deploy; the versioned assets are tiny anyway
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
       res.end(data);
     });
   });
