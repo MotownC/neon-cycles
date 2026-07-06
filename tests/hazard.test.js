@@ -1,6 +1,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 const H = require('../src/hazard');
+const B = require('../src/board');
 
 test('borderRing at margin 0 is the full outer perimeter', () => {
   const cells = H.borderRing(6, 4, 0);
@@ -35,8 +36,6 @@ test('squareRing clips cells outside the board', () => {
   }
   assert.ok(cells.length > 0 && cells.length < 8);
 });
-
-const B = require('../src/board');
 
 function seeded(seed) {
   let s = seed;

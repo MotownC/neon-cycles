@@ -66,7 +66,6 @@
     const { board, snakes } = round;
     const { cells } = hazard.telegraph;
     for (const c of cells) {
-      if (!board.walls) board.walls = [];
       // Light unconditionally (idempotent) so a hazard ring permanently
       // claims the cell even if it was previously just trail (which can
       // later be trimmed/unlit); only guard against duplicate wall entries.
