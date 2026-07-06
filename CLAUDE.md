@@ -63,6 +63,14 @@ and powerups are disabled online (v1). Deploy notes: `docs/deploy.md`.
 
 `main.js` keeps a 64-entry ring buffer (`window.__trace`) of key presses and applied tick directions, dumped to the console with per-snake crash verdicts on every round end. Use it to diagnose control/steering complaints from pasted console output.
 
+## Browser preview testing
+
+After verifying anything in the browser preview that started a round (music
+starts on countdown-end via `Audio.start()`), call
+`window.Audio.stop()` via `preview_eval` (or navigate back to the menu,
+which calls it too) before ending the turn — otherwise the soundtrack keeps
+playing in the background after the tool session moves on.
+
 ## Gotchas
 
 - `README.md` controls section is stale (P1/P2 swapped; missing CPU mode, walls, turbo). The in-game hint in `index.html` is authoritative: P1 = arrows + Right Shift turbo, P2 = WASD + Left Shift turbo.
