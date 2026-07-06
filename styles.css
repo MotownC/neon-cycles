@@ -90,6 +90,12 @@ html, body {
 .leaderboard .row { display: flex; justify-content: space-between; padding: 2px 8px; opacity: .9; }
 .leaderboard h3 { letter-spacing: 3px; margin: 0 0 8px; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
 
+.controls-grid { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+.controls-col { text-align: left; }
+.controls-col h4 { margin: 0 0 6px; letter-spacing: 2px; font-size: 14px;
+  color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
+.controls-col .hint { display: block; margin: 2px 0; }
+
 .hud {
   position: absolute; top: 14px; left: 0; right: 0; display: flex;
   justify-content: center; gap: 48px; font-size: 22px; letter-spacing: 3px;

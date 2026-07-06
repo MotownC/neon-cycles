@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NEON CYCLES</title>
-  <link rel="stylesheet" href="styles.css?v=0.11.0" />
+  <link rel="stylesheet" href="styles.css?v=0.12.0" />
 </head>
 <body>
   <div id="stage">
@@ -36,6 +36,29 @@
       <div style="display:flex;gap:16px;justify-content:center">
         <button id="settings-toggle" class="neon-btn cyan">SETTINGS</button>
         <button id="leaderboard-toggle" class="neon-btn magenta">LEADERBOARD</button>
+        <button id="controls-toggle" class="neon-btn cyan">CONTROLS</button>
+      </div>
+      <div id="controls-panel" class="hidden">
+        <div class="controls-grid">
+          <div class="controls-col">
+            <h4>PLAYER 1</h4>
+            <span class="hint">Up: Arrow Up</span>
+            <span class="hint">Down: Arrow Down</span>
+            <span class="hint">Left: Arrow Left</span>
+            <span class="hint">Right: Arrow Right</span>
+            <span class="hint">Turbo: Right Shift</span>
+            <span class="hint">Fire: /</span>
+          </div>
+          <div class="controls-col">
+            <h4>PLAYER 2</h4>
+            <span class="hint">Up: W</span>
+            <span class="hint">Down: S</span>
+            <span class="hint">Left: A</span>
+            <span class="hint">Right: D</span>
+            <span class="hint">Turbo: Left Shift</span>
+            <span class="hint">Fire: Q</span>
+          </div>
+        </div>
       </div>
       <div class="wall-toggle settings-group hidden" role="group" aria-label="Wall density">
         <span class="hint">WALLS</span>
@@ -67,8 +90,7 @@
         <span class="hint">COLOR</span>
       </div>
       <div id="leaderboard" class="leaderboard hidden"></div>
-      <p class="hint">P1: ARROW KEYS &nbsp;•&nbsp; P2: W A S D &nbsp;•&nbsp; TURBO: P1 R-SHIFT / P2 L-SHIFT &nbsp;•&nbsp; FIRE: P1 / / P2 Q</p>
-      <p class="hint" id="version">v0.11.0</p>
+      <p class="hint" id="version">v0.12.0</p>
     </section>
 
     <!-- Countdown overlay -->
@@ -87,25 +109,25 @@
 
   <!-- ?v= must match the version shown in the menu; bump both together so
        browsers refetch scripts instead of reusing stale cached copies -->
-  <script src="src/geometry.js?v=0.11.0"></script>
-  <script src="src/snake.js?v=0.11.0"></script>
-  <script src="src/board.js?v=0.11.0"></script>
-  <script src="src/trail.js?v=0.11.0"></script>
-  <script src="src/projectile.js?v=0.11.0"></script>
-  <script src="src/powerups.js?v=0.11.0"></script>
-  <script src="src/walls.js?v=0.11.0"></script>
-  <script src="src/round.js?v=0.11.0"></script>
-  <script src="src/match.js?v=0.11.0"></script>
-  <script src="src/gauntlet.js?v=0.11.0"></script>
-  <script src="src/cpu.js?v=0.11.0"></script>
-  <script src="src/speed.js?v=0.11.0"></script>
-  <script src="src/leaderboard.js?v=0.11.0"></script>
-  <script src="src/audio.js?v=0.11.0"></script>
-  <script src="src/sprites.js?v=0.11.0"></script>
-  <script src="src/renderer.js?v=0.11.0"></script>
-  <script src="src/input.js?v=0.11.0"></script>
-  <script src="src/net.js?v=0.11.0"></script>
-  <script src="src/online.js?v=0.11.0"></script>
-  <script src="src/main.js?v=0.11.0"></script>
+  <script src="src/geometry.js?v=0.12.0"></script>
+  <script src="src/snake.js?v=0.12.0"></script>
+  <script src="src/board.js?v=0.12.0"></script>
+  <script src="src/trail.js?v=0.12.0"></script>
+  <script src="src/projectile.js?v=0.12.0"></script>
+  <script src="src/powerups.js?v=0.12.0"></script>
+  <script src="src/walls.js?v=0.12.0"></script>
+  <script src="src/round.js?v=0.12.0"></script>
+  <script src="src/match.js?v=0.12.0"></script>
+  <script src="src/gauntlet.js?v=0.12.0"></script>
+  <script src="src/cpu.js?v=0.12.0"></script>
+  <script src="src/speed.js?v=0.12.0"></script>
+  <script src="src/leaderboard.js?v=0.12.0"></script>
+  <script src="src/audio.js?v=0.12.0"></script>
+  <script src="src/sprites.js?v=0.12.0"></script>
+  <script src="src/renderer.js?v=0.12.0"></script>
+  <script src="src/input.js?v=0.12.0"></script>
+  <script src="src/net.js?v=0.12.0"></script>
+  <script src="src/online.js?v=0.12.0"></script>
+  <script src="src/main.js?v=0.12.0"></script>
 </body>
 </html>
