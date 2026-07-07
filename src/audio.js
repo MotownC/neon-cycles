@@ -15,12 +15,12 @@
   const DARK_BASS = [0, 0, 0, 0, 3, 3, 0, 0]; // pounding root pulse with a minor-third stab
 
   let distortionCurve = null;
-  function distortionShaper(amount = 40) {
+  function distortionShaper() {
     if (!distortionCurve) {
       distortionCurve = new Float32Array(256);
       for (let i = 0; i < 256; i++) {
         const x = (i / 128) - 1;
-        distortionCurve[i] = Math.tanh(amount * x) / Math.tanh(amount);
+        distortionCurve[i] = Math.tanh(40 * x) / Math.tanh(40);
       }
     }
     const ws = ctx.createWaveShaper();
