@@ -14,6 +14,9 @@
 
   const DARK_BASS = [0, 0, 0, 0, 3, 3, 0, 0]; // pounding root pulse with a minor-third stab
 
+  let customEl = null, customUrl = null;
+  const CUSTOM_VOLUME = 0.5, CUSTOM_DUCK = CUSTOM_VOLUME * 0.2;
+
   let distortionCurve = null;
   function distortionShaper() {
     if (!distortionCurve) {
@@ -156,13 +159,43 @@
     drone = { oscs, filter: f, gain: g };
   }
 
+  function loadCustomTrack(file) {
+    if (customUrl) URL.revokeObjectURL(customUrl);
+    customUrl = URL.createObjectURL(file);
+    if (!customEl) { customEl = new Audio(); customEl.loop = true; }
+    customEl.src = customUrl;
+    customEl.volume = CUSTOM_VOLUME;
+  }
+
+  function playCustomTrack() {
+    if (!customEl || !customEl.src) return;
+    customEl.currentTime = 0;
+    customEl.volume = CUSTOM_VOLUME;
+    customEl.play().catch(() => {});
+  }
+
+  function duckCustomTrack() {
+    if (!customEl) return;
+    customEl.volume = CUSTOM_DUCK;
+    const t0 = performance.now();
+    (function rampBack() {
+      const p = Math.min(1, (performance.now() - t0) / 1600);
+      customEl.volume = CUSTOM_DUCK + (CUSTOM_VOLUME - CUSTOM_DUCK) * p;
+      if (p < 1) requestAnimationFrame(rampBack);
+    })();
+  }
+
   function start(track) {
     ensure(); if (ctx.state === 'suspended') ctx.resume();
     if (running) return; running = true;
     currentTrack = track || 'original';
-    step = 0;
-    nextTime = ctx.currentTime + 0.05;
-    startDrone(); pump();
+    if (currentTrack === 'custom') {
+      playCustomTrack();
+    } else {
+      step = 0;
+      nextTime = ctx.currentTime + 0.05;
+      startDrone(); pump();
+    }
   }
 
   function stop() {
@@ -173,6 +206,7 @@
       drone.oscs.forEach((o) => o.stop(t + 0.6));
       drone = null;
     }
+    if (customEl) customEl.pause();
   }
 
   function setIntensity(v) {
@@ -183,9 +217,13 @@
   function crash() {
     ensure(); const t = ctx.currentTime;
     // duck the music so the blast lands, then swell back in
-    master.gain.cancelScheduledValues(t);
-    master.gain.setValueAtTime(0.04, t);
-    master.gain.linearRampToValueAtTime(0.2, t + 1.6);
+    if (currentTrack === 'custom' && customEl) {
+      duckCustomTrack();
+    } else {
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(0.04, t);
+      master.gain.linearRampToValueAtTime(0.2, t + 1.6);
+    }
     const boom = ctx.createGain(); boom.gain.value = 0.55; boom.connect(ctx.destination);
     // sub impact: deep pitch drop
     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -227,5 +265,5 @@
     tone(t + 0.05, 1100, 0.12, 'triangle', 0.28, 3500);
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx };
+  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx, loadCustomTrack };
 });
