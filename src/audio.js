@@ -16,6 +16,7 @@
 
   let customEl = null, customUrl = null;
   const CUSTOM_VOLUME = 0.5, CUSTOM_DUCK = CUSTOM_VOLUME * 0.2;
+  let duckToken = 0;
 
   let distortionCurve = null;
   function distortionShaper() {
@@ -176,9 +177,11 @@
 
   function duckCustomTrack() {
     if (!customEl) return;
+    const token = ++duckToken;
     customEl.volume = CUSTOM_DUCK;
     const t0 = performance.now();
     (function rampBack() {
+      if (token !== duckToken) return; // a newer duck or a stop() superseded this ramp
       const p = Math.min(1, (performance.now() - t0) / 1600);
       customEl.volume = CUSTOM_DUCK + (CUSTOM_VOLUME - CUSTOM_DUCK) * p;
       if (p < 1) requestAnimationFrame(rampBack);
@@ -207,6 +210,7 @@
       drone = null;
     }
     if (customEl) customEl.pause();
+    duckToken++;
   }
 
   function setIntensity(v) {
