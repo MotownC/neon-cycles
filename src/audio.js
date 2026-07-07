@@ -9,6 +9,8 @@
   const ROOT = 55; // A1 — everything sits low and dark
   const BASS_RIFF = [0, 0, 12, 0, 1, 1, 10, 8]; // phrygian ostinato (b2 for menace)
   const ARP = [0, 3, 7, 8, 12, 8, 7, 3];        // minor with b6
+  let currentTrack = 'original';
+  const TRACK_TEMPO = { original: 0.14, darkwave: 0.125 };
 
   function ensure() {
     if (ctx) return;
@@ -60,9 +62,11 @@
     o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.2);
   }
 
-  function stepInterval() { return (0.14 - intensity * 0.07); } // s per 16th note
+  function stepInterval() {
+    return (TRACK_TEMPO[currentTrack] || TRACK_TEMPO.original) - intensity * 0.07;
+  }
 
-  function scheduleStep(t) {
+  function scheduleStepOriginal(t) {
     const cutoff = 400 + intensity * 2400; // filter opens as the game speeds up
     // driving bass ostinato on every 16th
     tone(t, ROOT * 2 * Math.pow(2, BASS_RIFF[step % 8] / 12), 0.11, 'sawtooth', 0.5, cutoff);
@@ -75,6 +79,14 @@
       tone(t, ROOT * 4 * Math.pow(2, semis / 12), 0.09, 'square', 0.1, cutoff + 800);
     }
     step++;
+  }
+
+  function scheduleStepDarkwave(t) {
+    scheduleStepOriginal(t); // placeholder until a later task fills in the real pattern
+  }
+
+  function scheduleStep(t) {
+    (currentTrack === 'darkwave' ? scheduleStepDarkwave : scheduleStepOriginal)(t);
   }
 
   // lookahead scheduler: queue steps slightly ahead on the audio clock for tight timing
@@ -97,9 +109,11 @@
     drone = { oscs, filter: f, gain: g };
   }
 
-  function start() {
+  function start(track) {
     ensure(); if (ctx.state === 'suspended') ctx.resume();
-    if (running) return; running = true; step = 0;
+    if (running) return; running = true;
+    currentTrack = track || 'original';
+    step = 0;
     nextTime = ctx.currentTime + 0.05;
     startDrone(); pump();
   }
