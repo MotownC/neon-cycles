@@ -91,6 +91,15 @@ test('a snake head elsewhere survives the same event', () => {
   assert.strictEqual(round.snakes[0].alive, true);
 });
 
+test('a pickup on a solidifying cell is removed so it cannot be buried under a wall', () => {
+  const round = makeRound(20, 14, { x: 10, y: 7 }); // head far from the border ring
+  round.pickups = [{ pos: { x: 0, y: 0 }, type: 'ammo', spawnedAt: 0 }, { pos: { x: 10, y: 7 }, type: 'ammo', spawnedAt: 0 }];
+  const hz = H.createHazard(20, 14);
+  H.advance(round, hz, 15, () => 0.1); // border ring includes (0,0)
+  H.advance(round, hz, 16, () => 0.1); // solidify
+  assert.deepStrictEqual(round.pickups, [{ pos: { x: 10, y: 7 }, type: 'ammo', spawnedAt: 0 }]);
+});
+
 test('advance freezes once the safety floor is reached and stops changing the board', () => {
   const round = makeRound(20, 14, { x: 10, y: 7 });
   const hz = H.createHazard(20, 14);

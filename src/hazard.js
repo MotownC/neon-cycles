@@ -73,6 +73,9 @@
       if (!board.walls.some((w) => w.x === c.x && w.y === c.y)) board.walls.push(c);
     }
     hazard.telegraph = null;
+    if (round.pickups) {
+      round.pickups = round.pickups.filter((p) => !cells.some((c) => c.x === p.pos.x && c.y === p.pos.y));
+    }
     for (const snake of snakes) {
       if (!snake.alive) continue;
       const head = snake.body[snake.body.length - 1];
