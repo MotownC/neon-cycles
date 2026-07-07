@@ -12,6 +12,22 @@
   let currentTrack = 'original';
   const TRACK_TEMPO = { original: 0.14, darkwave: 0.125 };
 
+  const DARK_BASS = [0, 0, 0, 0, 3, 3, 0, 0]; // pounding root pulse with a minor-third stab
+
+  let distortionCurve = null;
+  function distortionShaper(amount = 40) {
+    if (!distortionCurve) {
+      distortionCurve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) {
+        const x = (i / 128) - 1;
+        distortionCurve[i] = Math.tanh(amount * x) / Math.tanh(amount);
+      }
+    }
+    const ws = ctx.createWaveShaper();
+    ws.curve = distortionCurve;
+    return ws;
+  }
+
   function ensure() {
     if (ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -62,6 +78,31 @@
     o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.2);
   }
 
+  function hardKick(t) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.07);
+    env(g, t, 1.0, 0.13);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.18);
+  }
+
+  function darkBassTone(t, freq, dur, peak, cutoff) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.value = freq;
+    const ws = distortionShaper();
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 4;
+    env(g, t, peak, dur);
+    o.connect(ws); ws.connect(f); f.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  function sirenStab(t) {
+    const f = noise(t, 0.5, 0.3, 'bandpass', 600);
+    f.frequency.setValueAtTime(600, t);
+    f.frequency.exponentialRampToValueAtTime(3200, t + 0.25);
+    f.frequency.exponentialRampToValueAtTime(600, t + 0.5);
+  }
+
   function stepInterval() {
     return (TRACK_TEMPO[currentTrack] || TRACK_TEMPO.original) - intensity * 0.07;
   }
@@ -82,7 +123,13 @@
   }
 
   function scheduleStepDarkwave(t) {
-    scheduleStepOriginal(t); // placeholder until a later task fills in the real pattern
+    const cutoff = 500 + intensity * 3000;
+    darkBassTone(t, ROOT * 2 * Math.pow(2, DARK_BASS[step % 8] / 12), 0.1, 0.55, cutoff);
+    // busier 16th-note hats than the original track, for a driving rave feel
+    noise(t, 0.025, step % 2 === 0 ? 0.15 : 0.09, 'highpass', 7000);
+    if (step % 4 === 0) hardKick(t);
+    if (step % 32 === 16) sirenStab(t);
+    step++;
   }
 
   function scheduleStep(t) {
