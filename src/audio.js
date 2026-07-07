@@ -4,6 +4,7 @@
   if (typeof window !== 'undefined') window[api.__name] = api;
 })(this, function () {
   let ctx = null, master = null, noiseBuf = null;
+  const NativeAudioCtor = typeof window !== 'undefined' ? window.Audio : undefined;
   let seqTimer = null, step = 0, nextTime = 0, intensity = 0, running = false;
   let drone = null;
   const ROOT = 55; // A1 — everything sits low and dark
@@ -163,7 +164,7 @@
   function loadCustomTrack(file) {
     if (customUrl) URL.revokeObjectURL(customUrl);
     customUrl = URL.createObjectURL(file);
-    if (!customEl) { customEl = new Audio(); customEl.loop = true; }
+    if (!customEl) { customEl = new NativeAudioCtor(); customEl.loop = true; }
     customEl.src = customUrl;
     customEl.volume = CUSTOM_VOLUME;
   }
