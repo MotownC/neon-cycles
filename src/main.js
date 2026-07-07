@@ -43,6 +43,7 @@
     matchTarget: MATCH_TARGET,
     flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
     trailMode: 'tron',
+    musicTrack: 'original',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
     atlas: null, // baked sprite atlas, rebaked on round start and resize
@@ -181,7 +182,7 @@
     const iv = setInterval(() => {
       n -= 1;
       if (n <= 0) { clearInterval(iv); show(null); hud.classList.remove('hidden');
-        state.phase = 'playing'; state.last = performance.now(); Audio.start(); }
+        state.phase = 'playing'; state.last = performance.now(); Audio.start(state.musicTrack); }
       else countSpan.textContent = n;
     }, 700);
   }
@@ -654,6 +655,23 @@
     state.trailMode = btn.dataset.trail;
     trailButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
+
+  const musicButtons = document.querySelectorAll('[data-music]');
+  const musicFileInput = el('music-file-input');
+  const musicCustomBtn = el('music-custom-btn');
+  musicButtons.forEach((btn) => btn.addEventListener('click', () => {
+    if (btn.dataset.music === 'custom') { musicFileInput.click(); return; }
+    state.musicTrack = btn.dataset.music;
+    musicButtons.forEach((b) => b.classList.toggle('active', b === btn));
+  }));
+  musicFileInput.addEventListener('change', () => {
+    const file = musicFileInput.files[0];
+    if (!file) return;
+    Audio.loadCustomTrack(file);
+    state.musicTrack = 'custom';
+    musicButtons.forEach((b) => b.classList.toggle('active', b === musicCustomBtn));
+    musicCustomBtn.textContent = `CUSTOM: ${file.name.slice(0, 18)}`;
+  });
 
   const colorToggle = el('color-toggle');
   Renderer.PALETTE.forEach((color, i) => {
