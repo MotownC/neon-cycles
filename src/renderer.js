@@ -83,6 +83,20 @@
     for (const c of walls) blit(ctx, atlas.wall, c.x, c.y, cell, atlas.spans.wall);
   }
 
+  // Cells about to become permanent walls pulse in warning amber for the
+  // ~1s telegraph window, distinguishing "incoming" from "already solid".
+  function drawHazardTelegraph(ctx, hazard, cell, elapsedSec) {
+    if (!hazard || !hazard.telegraph) return;
+    const pulse = 0.4 + 0.4 * Math.abs(Math.sin(elapsedSec * 10));
+    ctx.save();
+    ctx.fillStyle = '#ff9933';
+    ctx.shadowColor = '#ff9933';
+    ctx.shadowBlur = cell * 1.2;
+    ctx.globalAlpha = pulse;
+    for (const c of hazard.telegraph.cells) ctx.fillRect(c.x * cell, c.y * cell, cell, cell);
+    ctx.restore();
+  }
+
   function drawBolts(ctx, bolts, colors, cell, atlas, elapsedSec) {
     if (!bolts || !bolts.length) return;
     const span = atlas.spans.bolt;
@@ -189,9 +203,10 @@
   }
 
   function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = [], atlas) {
-    const { board, snakes, bolts, pickups, frozenUntil } = round;
+    const { board, snakes, bolts, pickups, frozenUntil, hazard } = round;
     drawGrid(ctx, board.width, board.height, cell, borderColor);
     drawWalls(ctx, board.walls, cell, atlas);
+    drawHazardTelegraph(ctx, hazard, cell, elapsedSec);
     drawPickups(ctx, pickups, cell, elapsedSec, atlas);
     drawBolts(ctx, bolts, colors, cell, atlas, elapsedSec);
     drawFlashes(ctx, flashes, cell, elapsedSec);
