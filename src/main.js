@@ -670,7 +670,9 @@
     Audio.loadCustomTrack(file);
     state.musicTrack = 'custom';
     musicButtons.forEach((b) => b.classList.toggle('active', b === musicCustomBtn));
-    musicCustomBtn.textContent = `CUSTOM: ${file.name.slice(0, 18)}`;
+    const name = file.name.length > 18 ? `${file.name.slice(0, 18)}…` : file.name;
+    musicCustomBtn.textContent = `CUSTOM: ${name}`;
+    musicFileInput.value = '';
   });
 
   const colorToggle = el('color-toggle');
