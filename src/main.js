@@ -332,13 +332,20 @@
     const time = Number(state.elapsed.toFixed(1));
     let board = Leaderboard.load(window.localStorage);
     show(gameover); goTitle.textContent = 'GAME OVER';
-    if (Leaderboard.qualifies(board, time)) {
-      const name = (prompt(`New high score: ${time}s! Enter name:`, 'YOU') || 'YOU');
-      board = Leaderboard.insert(window.localStorage, board, name, time);
-    }
     goBody.innerHTML = `<p>SURVIVED ${time.toFixed(1)}s</p>` + renderBoard(board);
     el('go-continue').textContent = 'PRESS ENTER FOR MENU';
     state.phase = 'gameover';
+    if (Leaderboard.qualifies(board, time)) {
+      // prompt() blocks the tab until dismissed, which can stall the just-triggered
+      // crash SFX in some browsers — delay it past the SFX's ~1.6s duration. Guard
+      // against the player already having moved on (e.g. back to the menu) by then.
+      setTimeout(() => {
+        if (state.phase !== 'gameover') return;
+        const name = (prompt(`New high score: ${time}s! Enter name:`, 'YOU') || 'YOU');
+        board = Leaderboard.insert(window.localStorage, board, name, time);
+        goBody.innerHTML = `<p>SURVIVED ${time.toFixed(1)}s</p>` + renderBoard(board);
+      }, 1600);
+    }
   }
 
   function flashCrash() {
