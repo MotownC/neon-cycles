@@ -170,9 +170,22 @@
         const err = customEl.error;
         console.error('Custom track failed to load/decode:', err && err.message, '(code', err && err.code, ')');
       });
+      customEl.addEventListener('playing', () => console.log('Custom track: playing event fired'));
+      customEl.addEventListener('stalled', () => console.warn('Custom track: stalled'));
+      customEl.addEventListener('suspend', () => console.warn('Custom track: suspend'));
     }
     customEl.src = customUrl;
     customEl.volume = CUSTOM_VOLUME;
+  }
+
+  function logCustomState(label) {
+    if (!customEl) return;
+    console.log(label, {
+      paused: customEl.paused, muted: customEl.muted, volume: customEl.volume,
+      currentTime: customEl.currentTime, duration: customEl.duration,
+      readyState: customEl.readyState, networkState: customEl.networkState,
+      error: customEl.error && { code: customEl.error.code, message: customEl.error.message },
+    });
   }
 
   function playCustomTrack() {
@@ -184,6 +197,7 @@
     if (playResult && typeof playResult.catch === 'function') {
       playResult.catch((e) => console.error('Custom track failed to play:', e));
     }
+    setTimeout(() => logCustomState('Custom track state 300ms after play():'), 300);
   }
 
   function duckCustomTrack() {
