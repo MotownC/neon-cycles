@@ -180,12 +180,12 @@
 
   function logCustomState(label) {
     if (!customEl) return;
-    console.log(label, {
+    console.log(label, JSON.stringify({
       paused: customEl.paused, muted: customEl.muted, volume: customEl.volume,
       currentTime: customEl.currentTime, duration: customEl.duration,
       readyState: customEl.readyState, networkState: customEl.networkState,
       error: customEl.error && { code: customEl.error.code, message: customEl.error.message },
-    });
+    }));
   }
 
   function playCustomTrack() {
