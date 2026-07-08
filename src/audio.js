@@ -179,7 +179,11 @@
     if (!customEl || !customEl.src) return;
     customEl.currentTime = 0;
     customEl.volume = CUSTOM_VOLUME;
-    customEl.play().catch((e) => console.error('Custom track failed to play:', e));
+    // play() doesn't return a Promise in every environment, so guard before chaining .catch
+    const playResult = customEl.play();
+    if (playResult && typeof playResult.catch === 'function') {
+      playResult.catch((e) => console.error('Custom track failed to play:', e));
+    }
   }
 
   function duckCustomTrack() {
