@@ -170,34 +170,41 @@
         const err = customEl.error;
         console.error('Custom track failed to load/decode:', err && err.message, '(code', err && err.code, ')');
       });
-      customEl.addEventListener('playing', () => console.log('Custom track: playing event fired'));
-      customEl.addEventListener('stalled', () => console.warn('Custom track: stalled'));
-      customEl.addEventListener('suspend', () => console.warn('Custom track: suspend'));
     }
     customEl.src = customUrl;
     customEl.volume = CUSTOM_VOLUME;
   }
 
-  function logCustomState(label) {
-    if (!customEl) return;
-    console.log(label, JSON.stringify({
-      paused: customEl.paused, muted: customEl.muted, volume: customEl.volume,
-      currentTime: customEl.currentTime, duration: customEl.duration,
-      readyState: customEl.readyState, networkState: customEl.networkState,
-      error: customEl.error && { code: customEl.error.code, message: customEl.error.message },
-    }));
+  // Unlock the media element from within a user gesture (the mode-button click).
+  // Some browsers — notably Edge's default "Limit" autoplay mode — refuse a plain
+  // element.play() that fires later from the countdown timer, leaving it paused at
+  // 0 with no error. So we start it MUTED during the click (muted playback is always
+  // allowed) and let it roll silently; playCustomTrack() then just unmutes it, and
+  // changing volume/mute on an already-playing element needs no user activation.
+  function primeCustomTrack() {
+    if (!customEl || !customEl.src) return;
+    customEl.muted = true;
+    customEl.currentTime = 0;
+    const p = customEl.play();
+    if (p && typeof p.then === 'function') {
+      p.catch((e) => console.error('Custom track prime failed:', e));
+    }
   }
 
   function playCustomTrack() {
     if (!customEl || !customEl.src) return;
     customEl.currentTime = 0;
+    customEl.muted = false;
     customEl.volume = CUSTOM_VOLUME;
-    // play() doesn't return a Promise in every environment, so guard before chaining .catch
-    const playResult = customEl.play();
-    if (playResult && typeof playResult.catch === 'function') {
-      playResult.catch((e) => console.error('Custom track failed to play:', e));
+    // If prime kept it rolling, it's already unmuted-and-playing now — don't call
+    // play() again from this timer context. Only fall back to a direct play() if it
+    // somehow isn't running (prime skipped, or a browser that didn't need priming).
+    if (customEl.paused) {
+      const p = customEl.play();
+      if (p && typeof p.then === 'function') {
+        p.catch((e) => console.error('Custom track failed to play:', e));
+      }
     }
-    setTimeout(() => logCustomState('Custom track state 300ms after play():'), 300);
   }
 
   function duckCustomTrack() {
@@ -294,5 +301,5 @@
     tone(t + 0.05, 1100, 0.12, 'triangle', 0.28, 3500);
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx, loadCustomTrack };
+  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx, loadCustomTrack, primeCustomTrack };
 });

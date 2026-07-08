@@ -630,7 +630,13 @@
     },
   });
   document.querySelectorAll('[data-mode]').forEach((btn) =>
-    btn.addEventListener('click', () => beginGame(btn.dataset.mode)));
+    btn.addEventListener('click', () => {
+      // Unlock the custom audio element now, while we still have a user gesture —
+      // Audio.start() fires later from the countdown timer, too late to satisfy
+      // stricter autoplay policies (e.g. Edge's "Limit" mode).
+      if (state.musicTrack === 'custom') Audio.primeCustomTrack();
+      beginGame(btn.dataset.mode);
+    }));
   el('go-continue').addEventListener('click', onAction);
 
   const wallButtons = document.querySelectorAll('[data-wall]');
