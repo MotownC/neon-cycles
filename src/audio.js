@@ -164,7 +164,13 @@
   function loadCustomTrack(file) {
     if (customUrl) URL.revokeObjectURL(customUrl);
     customUrl = URL.createObjectURL(file);
-    if (!customEl) { customEl = new NativeAudioCtor(); customEl.loop = true; }
+    if (!customEl) {
+      customEl = new NativeAudioCtor(); customEl.loop = true;
+      customEl.addEventListener('error', () => {
+        const err = customEl.error;
+        console.error('Custom track failed to load/decode:', err && err.message, '(code', err && err.code, ')');
+      });
+    }
     customEl.src = customUrl;
     customEl.volume = CUSTOM_VOLUME;
   }
@@ -173,7 +179,7 @@
     if (!customEl || !customEl.src) return;
     customEl.currentTime = 0;
     customEl.volume = CUSTOM_VOLUME;
-    customEl.play().catch(() => {});
+    customEl.play().catch((e) => console.error('Custom track failed to play:', e));
   }
 
   function duckCustomTrack() {
