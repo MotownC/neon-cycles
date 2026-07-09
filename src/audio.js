@@ -185,14 +185,20 @@
     if (!customEl || !customEl.src) return;
     customEl.muted = true;
     customEl.currentTime = 0;
+    console.log('Custom track: priming, readyState=' + customEl.readyState);
     const p = customEl.play();
     if (p && typeof p.then === 'function') {
-      p.catch((e) => console.error('Custom track prime failed:', e));
+      p.then(() => console.log('Custom track: prime play() resolved, paused=' + customEl.paused))
+        .catch((e) => console.error('Custom track: prime play() REJECTED —', e.name + ':', e.message));
+    } else {
+      console.warn('Custom track: prime play() did not return a Promise (type ' + typeof p + ')');
     }
   }
 
   function playCustomTrack() {
     if (!customEl || !customEl.src) return;
+    console.log('Custom track: round start — paused=' + customEl.paused + ' muted=' + customEl.muted
+      + ' readyState=' + customEl.readyState + ' currentTime=' + customEl.currentTime);
     customEl.currentTime = 0;
     customEl.muted = false;
     customEl.volume = CUSTOM_VOLUME;
@@ -200,10 +206,16 @@
     // play() again from this timer context. Only fall back to a direct play() if it
     // somehow isn't running (prime skipped, or a browser that didn't need priming).
     if (customEl.paused) {
+      console.log('Custom track: was paused at round start, calling play() again');
       const p = customEl.play();
       if (p && typeof p.then === 'function') {
-        p.catch((e) => console.error('Custom track failed to play:', e));
+        p.then(() => console.log('Custom track: fallback play() resolved'))
+          .catch((e) => console.error('Custom track: fallback play() REJECTED —', e.name + ':', e.message));
+      } else {
+        console.warn('Custom track: fallback play() did not return a Promise (type ' + typeof p + ')');
       }
+    } else {
+      console.log('Custom track: already playing at round start, just unmuted');
     }
   }
 
