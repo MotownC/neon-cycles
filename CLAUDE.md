@@ -22,6 +22,8 @@ There is no lint, build, or bundler. To play, open `index.html` directly in a br
 
 Script and stylesheet tags in `index.html` carry a `?v=<version>` query string that must match the version shown in the menu (`#version` element) and `package.json`. **When bumping the version, update all three together** so browsers refetch instead of using stale cached files.
 
+**Bump the version as its own commit at the end of every change that touches any `src/*.js` file or `styles.css`** (a follow-up commit is fine if it was missed — don't fold unrelated fixes into a silent no-bump commit). A real user's browser caches the old `?v=` file indefinitely otherwise; several bug reports in this project's history turned out to be nothing more than the fix not having shipped to the user's browser yet.
+
 ## Architecture
 
 ### UMD module pattern (load order matters)
@@ -59,6 +61,15 @@ and powerups are disabled online (v1). Deploy notes: `docs/deploy.md`.
 
 `cpu.js` scores each candidate move (straight/left/right) by **Voronoi territory**: BFS distance maps from both heads, counting cells reached strictly first minus cells the opponent reaches first. A straight-line bonus discourages pointless turns; a large head-on penalty makes trades a last resort. Deterministic given a seeded `rand` — tests exploit this.
 
+### Custom audio track lifecycle (`audio.js`)
+
+Unlike ORIGINAL/DARKWAVE (procedural, driven by a Web Audio `AudioContext`), a user-supplied CUSTOM track plays through a plain `<audio>` element (`customEl`). Its lifecycle is deliberately asymmetric from the procedural tracks and easy to break by "simplifying" it back toward their pattern:
+
+- **Priming is mandatory and gesture-bound.** `Audio.primeCustomTrack()` must be called synchronously from a real click handler (currently: the `[data-mode]` mode-button click in `main.js`) — it starts the element playing *muted*. Some browsers (observed: Edge with certain extensions/policies) silently refuse a `play()` call that fires later from a `setTimeout`/`setInterval` (e.g. the countdown), even though the same call succeeds from a direct click. Muted playback has no such restriction, so priming sidesteps it entirely. Do not remove priming or move the `play()` call into `Audio.start()`'s countdown-driven path.
+- **`crash()` mutes the custom element, it does not pause it.** Pausing would force the *next* round's `Audio.start()` to call `play()` again from the countdown timer — the exact non-gesture context priming exists to avoid. Muting achieves the same "cut instantly on crash" UX with zero autoplay risk, since the element keeps silently playing/looping in the background and the next round just unmutes it.
+- **`Audio.start()`'s `running` guard does not gate the custom-track branch.** `running` exists solely to stop the procedural sequencer (`pump()`/`startDrone()`) from double-starting; it's only ever reset by `stop()`, which is not called between rounds within a match. If the custom-track branch were gated by it too, `playCustomTrack()` (which does the unmuting) would only ever run once per match instead of once per round.
+- **`window[api.__name] = api`** (the UMD wrapper, shared by every module) overwrites the browser's native `window.Audio` constructor, since this module's own `__name` is `'Audio'`. `NativeAudioCtor` captures the real constructor at factory-execution time — before that overwrite runs — specifically so `new Audio()` inside `loadCustomTrack` keeps working. Don't call the bare `Audio` identifier anywhere in this file; use `NativeAudioCtor`.
+
 ### Debug trace
 
 `main.js` keeps a 64-entry ring buffer (`window.__trace`) of key presses and applied tick directions, dumped to the console with per-snake crash verdicts on every round end. Use it to diagnose control/steering complaints from pasted console output.
@@ -70,6 +81,14 @@ starts on countdown-end via `Audio.start()`), call
 `window.Audio.stop()` via `preview_eval` (or navigate back to the menu,
 which calls it too) before ending the turn — otherwise the soundtrack keeps
 playing in the background after the tool session moves on.
+
+**Known harness quirks** (cost real debugging time in this project's history — check these before concluding a real bug exists):
+
+- The `neon-cycles-static` preview config always serves the main checkout, never a git worktree — there's no way to pass it a cwd. To verify a worktree branch in-browser, temporarily add a second `.claude/launch.json` entry that `os.chdir()`s into the worktree before starting the server on a scratch port (bind to `127.0.0.1`, not `''` — binding to all interfaces trips the auto-mode permission classifier), then revert the launch.json edit once done.
+- `setTimeout`/`setInterval` (not just `requestAnimationFrame`) are unreliably throttled in this harness — a scheduled timer has fired tens of seconds late in one run and on-time in another, and inter-timer race ordering ("does A fire before B") is not trustworthy here. Verify timing-sensitive logic by reading the code, not by racing two timers in the preview.
+- `console.log(label, someObject)` collapses to `Object`/`[object Object]` when the transcript is copied as plain text (this is exactly how a real user's bug report loses the useful part) — log `JSON.stringify(obj)` or plain-string-concatenated fields instead of a raw object whenever the log is meant to be copy-pasted back.
+- Uncaught exceptions thrown inside DOM event listeners do **not** appear in `preview_console_logs` (it only captures explicit `console.*` calls) — register `window.addEventListener('error', ...)` before triggering the interaction if you need to catch one.
+- When testing the CUSTOM audio track, a synthetic/garbage `Blob` as the "file" only proves the click-handling code path doesn't throw — it does not prove playback actually works, since a decode failure on invalid data is silently swallowed by design. Use a real, valid audio file (even a small synthesized-but-well-formed WAV) to actually verify playback state (`paused`/`muted`/`currentTime` advancing), not just the absence of errors.
 
 ## Gotchas
 
