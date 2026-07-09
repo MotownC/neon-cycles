@@ -16,8 +16,7 @@
   const DARK_BASS = [0, 0, 0, 0, 3, 3, 0, 0]; // pounding root pulse with a minor-third stab
 
   let customEl = null, customUrl = null;
-  const CUSTOM_VOLUME = 0.5, CUSTOM_DUCK = CUSTOM_VOLUME * 0.2;
-  let duckToken = 0;
+  const CUSTOM_VOLUME = 0.5;
 
   let distortionCurve = null;
   function distortionShaper() {
@@ -219,19 +218,6 @@
     }
   }
 
-  function duckCustomTrack() {
-    if (!customEl) return;
-    const token = ++duckToken;
-    customEl.volume = CUSTOM_DUCK;
-    const t0 = performance.now();
-    (function rampBack() {
-      if (token !== duckToken) return; // a newer duck or a stop() superseded this ramp
-      const p = Math.min(1, (performance.now() - t0) / 1600);
-      customEl.volume = CUSTOM_DUCK + (CUSTOM_VOLUME - CUSTOM_DUCK) * p;
-      if (p < 1) requestAnimationFrame(rampBack);
-    })();
-  }
-
   function start(track) {
     ensure(); if (ctx.state === 'suspended') ctx.resume();
     if (running) return; running = true;
@@ -254,7 +240,6 @@
       drone = null;
     }
     if (customEl) customEl.pause();
-    duckToken++;
   }
 
   function setIntensity(v) {
@@ -266,7 +251,7 @@
     ensure(); const t = ctx.currentTime;
     // duck the music so the blast lands, then swell back in
     if (currentTrack === 'custom' && customEl) {
-      duckCustomTrack();
+      customEl.pause(); // user's own track: stop cleanly rather than duck-and-continue
     } else {
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(0.04, t);
