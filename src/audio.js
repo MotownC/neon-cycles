@@ -220,15 +220,19 @@
 
   function start(track) {
     ensure(); if (ctx.state === 'suspended') ctx.resume();
-    if (running) return; running = true;
     currentTrack = track || 'original';
     if (currentTrack === 'custom') {
+      // Not gated by `running`: crash() only mutes the element (see crash()'s
+      // comment), so every round's start() must reach playCustomTrack() to
+      // un-mute it again — `running` staying true from round 1 onward would
+      // otherwise silently skip every later round's unmute.
       playCustomTrack();
-    } else {
-      step = 0;
-      nextTime = ctx.currentTime + 0.05;
-      startDrone(); pump();
+      return;
     }
+    if (running) return; running = true;
+    step = 0;
+    nextTime = ctx.currentTime + 0.05;
+    startDrone(); pump();
   }
 
   function stop() {
@@ -251,7 +255,13 @@
     ensure(); const t = ctx.currentTime;
     // duck the music so the blast lands, then swell back in
     if (currentTrack === 'custom' && customEl) {
-      customEl.pause(); // user's own track: stop cleanly rather than duck-and-continue
+      // Mute rather than pause: pausing would force the *next* round's
+      // Audio.start() to call play() again from the countdown timer, with no
+      // user gesture backing it — the same autoplay-block risk primeCustomTrack()
+      // exists to avoid, and it only gets primed once, on the mode-button click,
+      // not before every round in a multi-round match. Muting keeps it "playing"
+      // in the background so every later round just unmutes.
+      customEl.muted = true;
     } else {
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(0.04, t);
