@@ -401,6 +401,7 @@
 
   function loop(now) {
     state.raf = requestAnimationFrame(loop);
+    Input.pollGamepads(inputHandlers);
     if (state.phase === 'menu') {
       const dtSec = Math.min(now - state.last, 250) / 1000; state.last = now;
       if (state.attract) { advanceAttract(dtSec); renderAttract(); }
@@ -586,7 +587,7 @@
   }
 
   // wire input + menu buttons
-  Input.attach({
+  const inputHandlers = {
     onDirection: (i, dir) => {
       if (isOnline()) {
         // Both key sets steer the local snake online; turns are queued for
@@ -628,7 +629,8 @@
       Projectile.fire(state.round, i, state.elapsed);
       if (state.round.firedCount[i] !== before) Audio.fireSfx();
     },
-  });
+  };
+  Input.attach(inputHandlers);
   document.querySelectorAll('[data-mode]').forEach((btn) =>
     btn.addEventListener('click', () => {
       // Unlock the custom audio element now, while we still have a user gesture —
