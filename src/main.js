@@ -632,7 +632,7 @@
       Projectile.fire(state.round, i, state.elapsed);
       if (state.round.firedCount[i] !== before) {
         Audio.fireSfx();
-        Input.rumble(i, { duration: 80, strong: 0.15, weak: 0.5 });
+        Input.rumble(i, { duration: 160, strong: 0.15, weak: 0.5 });
       }
     },
   };
