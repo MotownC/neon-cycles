@@ -48,15 +48,19 @@
     return stickDirection(gp);
   }
 
-  // handlers: same shape as attach() takes. Call once per animation frame.
-  function pollGamepads(handlers) {
-    if (!navigator.getGamepads) return;
-    const pads = Array.from(navigator.getGamepads())
+  // Same connected-pad-to-player-slot mapping used by pollGamepads and
+  // rumble: first two gamepads by connection order, slot 0 / slot 1.
+  function connectedPads() {
+    if (!navigator.getGamepads) return [];
+    return Array.from(navigator.getGamepads())
       .filter(Boolean)
       .sort((a, b) => a.index - b.index)
       .slice(0, 2);
+  }
 
-    pads.forEach((gp, slot) => {
+  // handlers: same shape as attach() takes. Call once per animation frame.
+  function pollGamepads(handlers) {
+    connectedPads().forEach((gp, slot) => {
       const st = padState[slot];
 
       const dir = padDirection(gp);
@@ -77,5 +81,22 @@
     });
   }
 
-  return { __name: 'Input', P1, P2, attach, pollGamepads };
+  // Fire-and-forget haptic feedback for playerIndex's own pad. No-ops
+  // silently if that slot has no gamepad or the browser/pad doesn't support
+  // the Haptics API — same "gamepad is optional" pattern as the rest of
+  // this module.
+  function rumble(playerIndex, { duration, strong, weak }) {
+    const gp = connectedPads()[playerIndex];
+    const actuator = gp && (gp.vibrationActuator
+      || (gp.hapticActuators && gp.hapticActuators[0]));
+    if (!actuator) return;
+    if (actuator.playEffect) {
+      actuator.playEffect('dual-rumble',
+        { duration, strongMagnitude: strong, weakMagnitude: weak }).catch(() => {});
+    } else if (actuator.pulse) {
+      actuator.pulse(strong, duration).catch(() => {});
+    }
+  }
+
+  return { __name: 'Input', P1, P2, attach, pollGamepads, rumble };
 });

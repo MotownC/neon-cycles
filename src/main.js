@@ -277,6 +277,9 @@
     // label with the live version from the menu so pasted traces can't lie about which build produced them
     setTimeout(() => console.log(`crash trace ${el('version').textContent}:`, JSON.stringify({ verdicts, trace })), 600);
     Audio.crash(); flashCrash(); state.phase = 'roundover';
+    state.round.snakes.forEach((s, i) => {
+      if (!s.alive) Input.rumble(i, { duration: 300, strong: 0.8, weak: 0.4 });
+    });
     if (state.mode === '1p') return finishSolo();
     Match.awardRound(state.match, state.round.winnerIndex);
     if (state.match.over) return state.mode === 'gauntlet' ? finishGauntletStage() : finishMatch();
@@ -627,7 +630,10 @@
       if (i === 1 && vsCpu()) return; // rivals fire themselves via CPU.shouldFire
       const before = state.round.firedCount[i];
       Projectile.fire(state.round, i, state.elapsed);
-      if (state.round.firedCount[i] !== before) Audio.fireSfx();
+      if (state.round.firedCount[i] !== before) {
+        Audio.fireSfx();
+        Input.rumble(i, { duration: 80, strong: 0.15, weak: 0.5 });
+      }
     },
   };
   Input.attach(inputHandlers);
