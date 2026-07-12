@@ -23,5 +23,59 @@
       else if (e.code === 'ShiftLeft' && handlers.onTurbo) { handlers.onTurbo(1, false); e.preventDefault(); }
     });
   }
-  return { __name: 'Input', P1, P2, attach };
+  // Gamepad API is poll-only (no press/release events), so pollGamepads is
+  // called once per rAF frame from main.js's loop() instead of being wired
+  // via addEventListener like attach() above. Per-slot state below lets it
+  // edge-detect direction/fire changes so a held stick/button doesn't fire
+  // handlers.onDirection/onFire every single frame.
+  const DPAD = { 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+  const STICK_DEADZONE = 0.5;
+  const padState = [
+    { dir: null, turbo: false, fire: false },
+    { dir: null, turbo: false, fire: false },
+  ];
+
+  function stickDirection(gp) {
+    const x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+    if (Math.abs(x) < STICK_DEADZONE && Math.abs(y) < STICK_DEADZONE) return null;
+    return Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'down' : 'up');
+  }
+
+  function padDirection(gp) {
+    for (const code in DPAD) {
+      if (gp.buttons[code] && gp.buttons[code].pressed) return DPAD[code];
+    }
+    return stickDirection(gp);
+  }
+
+  // handlers: same shape as attach() takes. Call once per animation frame.
+  function pollGamepads(handlers) {
+    if (!navigator.getGamepads) return;
+    const pads = Array.from(navigator.getGamepads())
+      .filter(Boolean)
+      .sort((a, b) => a.index - b.index)
+      .slice(0, 2);
+
+    pads.forEach((gp, slot) => {
+      const st = padState[slot];
+
+      const dir = padDirection(gp);
+      if (dir && dir !== st.dir) handlers.onDirection(slot, dir);
+      st.dir = dir;
+
+      const turboHeld = !!(gp.buttons[5] && gp.buttons[5].pressed)
+        || !!(gp.buttons[7] && gp.buttons[7].pressed);
+      if (turboHeld !== st.turbo && handlers.onTurbo) handlers.onTurbo(slot, turboHeld);
+      st.turbo = turboHeld;
+
+      const firePressed = !!(gp.buttons[0] && gp.buttons[0].pressed);
+      if (firePressed && !st.fire) {
+        if (handlers.onFire) handlers.onFire(slot);
+        handlers.onAction();
+      }
+      st.fire = firePressed;
+    });
+  }
+
+  return { __name: 'Input', P1, P2, attach, pollGamepads };
 });
