@@ -41,6 +41,7 @@
     phase: 'menu', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
     matchTarget: MATCH_TARGET,
+    skillLevel: Speed.DEFAULT_SKILL,
     flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
     trailMode: 'tron',
     musicTrack: 'original',
@@ -74,6 +75,11 @@
   // Online mode is only live once a start message has populated state.online
   // (after an abort we can be back at the menu with mode still 'online').
   function isOnline() { return state.mode === 'online' && state.online !== null; }
+  // Online: the host's skill level rides in the shared settings so both
+  // machines run the sim at the same tick interval.
+  function skillLevel() {
+    return isOnline() ? state.online.settings.skillLevel : state.skillLevel;
+  }
 
   // Field-debug ring buffer: recent inputs and applied directions, dumped to
   // the console on every crash so control issues can be diagnosed from a
@@ -419,7 +425,7 @@
 
     let frozen = [];
     if (!isOnline()) {
-      const boltInt = Speed.tickInterval(state.elapsed) / 3;
+      const boltInt = Speed.tickInterval(state.elapsed, skillLevel()) / 3;
       state.boltAcc += dt;
       while (state.boltAcc >= boltInt) {
         state.boltAcc -= boltInt;
@@ -441,15 +447,15 @@
     Round.resolve(state.round);
     if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
 
-    const normalInt = Speed.tickInterval(state.elapsed);
-    const turboInt = Speed.turboInterval(state.elapsed);
+    const normalInt = Speed.tickInterval(state.elapsed, skillLevel());
+    const turboInt = Speed.turboInterval(state.elapsed, skillLevel());
 
     if (isOnline()) {
       const o = state.online;
       // Cap the accumulator so a long stall doesn't fast-forward a burst of
       // ticks when input resumes (both sides stall together within INPUT_DELAY).
       state.acc = Math.min(state.acc + dt, 4 * Speed.BASE_MS);
-      let interval = Speed.tickInterval(state.elapsed);
+      let interval = Speed.tickInterval(state.elapsed, skillLevel());
       while (state.acc >= interval && Net.canTick(o.session)) {
         state.acc -= interval;
         const tickNum = o.session.next;
@@ -463,7 +469,7 @@
         turns.forEach((dirs, i) => dirs.forEach((d) => Snake.bufferDirection(state.round.snakes[i], d)));
         Round.tick(state.round, state.elapsed);
         state.elapsed += interval / 1000; // simulated time: identical on both machines
-        interval = Speed.tickInterval(state.elapsed);
+        interval = Speed.tickInterval(state.elapsed, skillLevel());
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
@@ -659,6 +665,12 @@
     targetButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
+  const skillButtons = document.querySelectorAll('[data-skill]');
+  skillButtons.forEach((btn) => btn.addEventListener('click', () => {
+    state.skillLevel = parseInt(btn.dataset.skill, 10);
+    skillButtons.forEach((b) => b.classList.toggle('active', b === btn));
+  }));
+
   const turboButtons = document.querySelectorAll('[data-turbo]');
   turboButtons.forEach((btn) => btn.addEventListener('click', () => {
     state.turboEnabled = btn.dataset.turbo === 'on';
@@ -756,7 +768,7 @@
 
   el('online-toggle').addEventListener('click', () => el('online-panel').classList.toggle('hidden'));
   el('online-host').addEventListener('click', () => onlineConnectAnd(() =>
-    Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode, matchTarget: state.matchTarget } })));
+    Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode, matchTarget: state.matchTarget, skillLevel: state.skillLevel } })));
   el('online-join').addEventListener('click', () => {
     const code = el('online-code-input').value.trim().toUpperCase();
     if (code.length !== 4) return setOnlineStatus('ENTER THE 4-LETTER CODE');
