@@ -124,6 +124,42 @@ test('a blundering personality still only picks from safe moves', () => {
   }
 });
 
+test('a lapse misses the turn and drives straight into the obstacle', () => {
+  const round = R.createRound(10, 10, [{ start: { x: 5, y: 5 }, direction: 'right' }]);
+  round.board.lit.add('6,5'); // straight blocked, but both turns are open
+  const p = { ...CPU.DEFAULT_PERSONALITY, lapse: 0.5 };
+  assert.strictEqual(CPU.chooseDirection(round, 0, () => 0.4, p), 'right'); // rand < lapse: missed it
+  assert.notStrictEqual(CPU.chooseDirection(round, 0, () => 0.6, p), 'right'); // rand >= lapse: turned
+});
+
+test('a lapse never fires while straight ahead is clear', () => {
+  const round = R.createRound(20, 20, [{ start: { x: 10, y: 10 }, direction: 'right' }]);
+  const calls = [];
+  const rand = () => { calls.push(1); return 0; };
+  const dir = CPU.chooseDirection(round, 0, rand, { ...CPU.DEFAULT_PERSONALITY, lapse: 1 });
+  assert.strictEqual(dir, 'right');
+  assert.strictEqual(calls.length, 1); // only the tie-break draw, no lapse roll
+});
+
+test('forSkill adds mistakes at low levels, most at level 1', () => {
+  const base = CPU.PERSONALITIES.grandmaster;
+  const l1 = CPU.forSkill(base, 1);
+  const l2 = CPU.forSkill(base, 2);
+  assert.ok(l1.blunder > l2.blunder && l2.blunder > 0);
+  assert.ok(l1.lapse > l2.lapse && l2.lapse > 0);
+  assert.strictEqual(l1.headonPenalty, base.headonPenalty); // rest of the personality is kept
+});
+
+test('forSkill leaves levels 3-5 and unknown levels untouched', () => {
+  const base = CPU.PERSONALITIES.aggressor;
+  for (const level of [3, 4, 5, undefined, 99]) assert.strictEqual(CPU.forSkill(base, level), base);
+});
+
+test('forSkill never makes a rival less blunder-prone than it already is', () => {
+  const clumsy = { ...CPU.DEFAULT_PERSONALITY, blunder: 0.9 };
+  assert.strictEqual(CPU.forSkill(clumsy, 1).blunder, 0.9);
+});
+
 // Split the board with a full-height wall so the CPU's side is slightly
 // smaller: the best move scores a little below zero — losing, but not by much.
 function slightlyLosingRound() {

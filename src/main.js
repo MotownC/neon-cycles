@@ -485,7 +485,7 @@
       while (state.acc >= normalInt) {
         state.acc -= normalInt;
         if (vsCpu() && state.round.snakes[1].alive && !frozen.includes(1)) {
-          const brain = CPU.PERSONALITIES[rivalKey()];
+          const brain = CPU.forSkill(CPU.PERSONALITIES[rivalKey()], skillLevel());
           Snake.bufferDirection(state.round.snakes[1], CPU.chooseDirection(state.round, 1, Math.random, brain));
           if (CPU.shouldFire(state.round, 1, state.elapsed, brain)) {
             const before = state.round.firedCount[1];
@@ -510,7 +510,7 @@
         while (state.turbo[i].acc >= interval) {
           state.turbo[i].acc -= interval;
           if (vsCpu() && i === 1) {
-            const brain = CPU.PERSONALITIES[rivalKey()];
+            const brain = CPU.forSkill(CPU.PERSONALITIES[rivalKey()], skillLevel());
             Snake.bufferDirection(snakes[1], CPU.chooseDirection(state.round, 1, Math.random, brain));
             if (CPU.shouldFire(state.round, 1, state.elapsed, brain)) {
               const before = state.round.firedCount[1];

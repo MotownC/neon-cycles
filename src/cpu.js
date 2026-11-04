@@ -15,14 +15,15 @@
   const HEADON_PENALTY = 200;
 
   // Behavior knobs for a rival. Weights change what the Voronoi score values,
-  // blunder injects mistakes for the easy tier, lookahead enables 2-ply
-  // scoring, and fire selects a trigger policy:
+  // blunder injects random safe moves, lapse is the chance of missing a needed
+  // turn and crashing, lookahead enables 2-ply scoring, and fire selects a
+  // trigger policy:
   //   boxed  — fire only with no safe move left
   //   losing — fire when the best safe move's score drops below `threshold`
   //   ambush — fire when the opponent's escape area shrinks below `openBelow`
   const DEFAULT_PERSONALITY = {
     straightBonus: STRAIGHT_BONUS, headonPenalty: HEADON_PENALTY,
-    oppWeight: 1, blunder: 0, lookahead: false,
+    oppWeight: 1, blunder: 0, lapse: 0, lookahead: false,
     fire: { mode: 'losing', threshold: 0 },
   };
 
@@ -40,6 +41,20 @@
     ambusher: { ...DEFAULT_PERSONALITY, headonPenalty: 1200, fire: { mode: 'ambush', openBelow: 60 } },
     grandmaster: { ...DEFAULT_PERSONALITY, straightBonus: 5, headonPenalty: 1500, oppWeight: 1.2, lookahead: true },
   };
+
+  // Mistakes the skill setting layers onto any rival. Levels without an entry
+  // play the rival as written. Blunder is rolled every tick; lapse only on the
+  // tick a turn is forced, so it's the odds per close call, not per tick.
+  const SKILL_MISTAKES = {
+    1: { blunder: 0.08, lapse: 0.12 },
+    2: { blunder: 0.03, lapse: 0.04 },
+  };
+
+  function forSkill(p, level) {
+    const m = SKILL_MISTAKES[level];
+    if (!m) return p;
+    return { ...p, blunder: Math.max(p.blunder, m.blunder), lapse: Math.max(p.lapse, m.lapse) };
+  }
 
   // Voronoi territory: cells we reach strictly before the opponent, minus
   // (weighted) cells they reach strictly first. Maximizing it both claims
@@ -118,6 +133,10 @@
   function chooseDirection(round, index, rand = Math.random, p = DEFAULT_PERSONALITY) {
     const { dir, head, safe } = safeMoves(round, index);
     if (!safe.length) return dir; // boxed in: crash forward
+    // Lapse: a turn was needed and the rival didn't react in time. The safe
+    // filter otherwise makes every crash a forced one, so without this a rival
+    // never dies by its own error.
+    if (p.lapse && !safe.includes(dir) && rand() < p.lapse) return dir;
     // Easy-tier mistake: occasionally take a random safe move instead of the
     // best one. Guarded so a zero-blunder personality never consumes rand,
     // keeping default decisions bit-identical to the unparameterized CPU.
@@ -151,5 +170,5 @@
     return best < p.fire.threshold;
   }
 
-  return { __name: 'CPU', PERSONALITIES, DEFAULT_PERSONALITY, chooseDirection, shouldFire };
+  return { __name: 'CPU', PERSONALITIES, DEFAULT_PERSONALITY, forSkill, chooseDirection, shouldFire };
 });
