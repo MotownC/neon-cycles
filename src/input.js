@@ -32,8 +32,8 @@
   const DPAD = { 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
   const STICK_DEADZONE = 0.5;
   const padState = [
-    { dir: null, turbo: false, fire: false },
-    { dir: null, turbo: false, fire: false },
+    { dir: null, turbo: false, fire: false, quit: false },
+    { dir: null, turbo: false, fire: false, quit: false },
   ];
 
   function stickDirection(gp) {
@@ -79,6 +79,10 @@
         handlers.onAction();
       }
       st.fire = firePressed;
+
+      const quitPressed = !!(gp.buttons[2] && gp.buttons[2].pressed); // X on an Xbox-style pad
+      if (quitPressed && !st.quit && handlers.onQuit) handlers.onQuit();
+      st.quit = quitPressed;
     });
   }
 
