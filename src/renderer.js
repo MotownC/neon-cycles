@@ -1,11 +1,11 @@
 (function (root, factory) {
   const deps = typeof require === 'function'
-    ? { T: require('./trail'), S: require('./sprites') }
-    : { T: window.Trail, S: window.Sprites };
+    ? { T: require('./trail'), S: require('./sprites'), R: require('./replay') }
+    : { T: window.Trail, S: window.Sprites, R: window.Replay };
   const api = factory(deps);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window[api.__name] = api;
-})(this, function ({ T, S }) {
+})(this, function ({ T, S, R }) {
   const COLORS = ['#00f0ff', '#ff2bd6'];
   const PALETTE = ['#00f0ff', '#ff2bd6', '#39ff6a', '#ff9d2b', '#fff23b', '#b06bff', '#ff3b3b', '#f2f6ff'];
 
@@ -66,13 +66,16 @@
     ctx.drawImage(img, (cellX - d) * cell, (cellY - d) * cell, span * cell, span * cell);
   }
 
+  // A replay glides the cycle between cells via cycleAt; live play sits on the head.
+  function cyclePos(snake) { return snake.cycleAt || snake.body[snake.body.length - 1]; }
+
   // Baked light cycle at the head cell, nose pointing along travel direction.
   function drawCycle(ctx, snake, color, cell, atlas) {
-    const head = snake.body[snake.body.length - 1];
+    const pos = cyclePos(snake);
     const img = atlas.cycles[color];
     const span = atlas.spans.cycle;
     ctx.save();
-    ctx.translate((head.x + 0.5) * cell, (head.y + 0.5) * cell);
+    ctx.translate((pos.x + 0.5) * cell, (pos.y + 0.5) * cell);
     ctx.rotate(ANGLES[snake.direction]);
     ctx.drawImage(img, -span * cell / 2, -span * cell / 2, span * cell, span * cell);
     ctx.restore();
@@ -153,6 +156,7 @@
       blit(ctx, tiles[key], c.x, c.y, cell, span);
     }
     ctx.restore();
+    if (snake.wrecked) return;
     drawCycle(ctx, snake, color, cell, atlas);
     if (snake.shield) drawShieldRing(ctx, snake, cell, elapsedSec);
     if (frozen) drawFrostOverlay(ctx, snake, cell);
@@ -160,7 +164,7 @@
 
   // A pulsing cyan ring around the head signals an armed, single-use shield.
   function drawShieldRing(ctx, snake, cell, elapsedSec) {
-    const h = snake.body[snake.body.length - 1];
+    const h = cyclePos(snake);
     const pulse = 0.75 + 0.25 * Math.sin(elapsedSec * 6);
     ctx.save();
     ctx.strokeStyle = '#66e0ff';
@@ -175,13 +179,56 @@
 
   // An icy tint over a frozen snake's head makes the stall readable at a glance.
   function drawFrostOverlay(ctx, snake, cell) {
-    const h = snake.body[snake.body.length - 1];
+    const h = cyclePos(snake);
     ctx.save();
     ctx.fillStyle = 'rgba(150,220,255,0.55)';
     ctx.shadowColor = '#bdeeff'; ctx.shadowBlur = cell * 1.1;
     ctx.beginPath();
     ctx.arc((h.x + 0.5) * cell, (h.y + 0.5) * cell, cell * 0.55, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  // A crashed cycle's pieces: tiles cut from its own sprite over a glowing
+  // backing in the snake's color (the sprite has dark panels that would
+  // vanish against the grid), plus thin sparks.
+  function drawDebris(ctx, debris, ageSec, colors, cell, atlas) {
+    for (const { snakeIndex, pieces } of debris) {
+      const color = colors[snakeIndex];
+      const img = atlas.cycles[color];
+      const perCell = img.width / atlas.spans.cycle;
+      for (const piece of pieces) {
+        const at = R.pieceAt(piece, ageSec);
+        if (!at) continue;
+        const d = piece.size * cell;
+        ctx.save();
+        ctx.globalAlpha = at.alpha;
+        ctx.translate((at.x + 0.5) * cell, (at.y + 0.5) * cell);
+        ctx.rotate(at.rot);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color; ctx.shadowBlur = cell * 0.6;
+        if (piece.kind === 'spark') {
+          ctx.fillRect(-d * 1.5, -d / 2, d * 3, d);
+        } else {
+          ctx.fillRect(-d * 0.4, -d * 0.4, d * 0.8, d * 0.8);
+          ctx.shadowBlur = 0;
+          const srcX = (piece.ox - piece.size / 2 + atlas.spans.cycle / 2) * perCell;
+          const srcY = (piece.oy - piece.size / 2 + atlas.spans.cycle / 2) * perCell;
+          const srcSize = piece.size * perCell;
+          ctx.drawImage(img, srcX, srcY, srcSize, srcSize, -d / 2, -d / 2, d, d);
+        }
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawReplayBanner(ctx, cols, rows, cell) {
+    ctx.save();
+    ctx.font = `bold ${cell}px "Trebuchet MS", "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#eaf6ff';
+    ctx.shadowColor = '#00f0ff'; ctx.shadowBlur = cell * 0.6;
+    ctx.fillText('SLOW-MO REPLAY \u2014 PRESS ENTER TO SKIP', cols * cell / 2, (rows - 1.5) * cell);
     ctx.restore();
   }
 
@@ -217,6 +264,6 @@
   return {
     __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
     pickOpponentColor, randomBorderColor, fadeAlpha, fit,
-    clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, render,
+    clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, drawDebris, drawReplayBanner, render,
   };
 });

@@ -97,3 +97,48 @@ test('render draws nothing extra when there are no bolts', () => {
   Renderer.render(ctx, round, 10, colors, '#ff2b4a', 0, [], fakeAtlas(colors));
   assert.strictEqual(ctx.drawImageCalls.length, 0); // no bolts, walls, or snakes to blit
 });
+
+const oneCellSnake = (extra) => ({ body: [{ x: 2, y: 3, t: 0 }], direction: 'right', ...extra });
+
+function logTranslates(ctx) {
+  const log = [];
+  ctx.translate = (x, y) => log.push([x, y]);
+  return log;
+}
+
+test('drawSnake draws no cycle for a wrecked snake', () => {
+  const ctx = mockCtx();
+  const color = '#00f0ff';
+  Renderer.drawSnake(ctx, oneCellSnake({ wrecked: true }), color, 10, 'tron', 0, false, fakeAtlas([color]));
+  assert.ok(!ctx.drawImageCalls.some(([img]) => img && img.id === `cycle-${color}`));
+});
+
+test('drawSnake puts the cycle at cycleAt when a replay supplies one', () => {
+  const ctx = mockCtx();
+  const color = '#00f0ff';
+  const translates = logTranslates(ctx);
+  Renderer.drawSnake(ctx, oneCellSnake({ cycleAt: { x: 2.5, y: 3 } }), color, 10, 'tron', 0, false, fakeAtlas([color]));
+  assert.deepStrictEqual(translates[0], [30, 35]);
+});
+
+test('drawDebris cuts fragments from the sprite of the dead snake only', () => {
+  const ctx = mockCtx();
+  const colors = ['#00f0ff', '#ff2bd6'];
+  const atlas = fakeAtlas(colors);
+  atlas.cycles[colors[1]].width = 120;
+  const piece = { kind: 'fragment', ox: 0, oy: 0, size: 0.5, x0: 1, y0: 1, vx: 0, vy: 0, rot0: 0, spin: 0, life: 1 };
+  Renderer.drawDebris(ctx, [{ snakeIndex: 1, pieces: [piece] }], 0.1, colors, 10, atlas);
+  assert.strictEqual(ctx.drawImageCalls.length, 1);
+  const [img, sx, , sw] = ctx.drawImageCalls[0];
+  assert.strictEqual(img.id, `cycle-${colors[1]}`);
+  assert.strictEqual(sx, 50); // (0 - 0.25 + 1.5) cells * 40 px per cell
+  assert.strictEqual(sw, 20);
+});
+
+test('drawDebris skips pieces that have burned out', () => {
+  const ctx = mockCtx();
+  const colors = ['#00f0ff', '#ff2bd6'];
+  const piece = { kind: 'fragment', ox: 0, oy: 0, size: 0.5, x0: 1, y0: 1, vx: 0, vy: 0, rot0: 0, spin: 0, life: 0.2 };
+  Renderer.drawDebris(ctx, [{ snakeIndex: 0, pieces: [piece] }], 0.5, colors, 10, fakeAtlas(colors));
+  assert.strictEqual(ctx.drawImageCalls.length, 0);
+});

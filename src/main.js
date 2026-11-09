@@ -43,6 +43,9 @@
     matchTarget: MATCH_TARGET,
     skillLevel: Speed.DEFAULT_SKILL,
     flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
+    recorder: null, // recent sim frames, read back by the crash replay
+    replay: null, // { playback, sec } while the 'replay' phase is running
+    actionLockUntil: 0, // performance.now() before which Enter is ignored on a result screen
     trailMode: 'tron',
     musicTrack: 'original',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
@@ -121,6 +124,9 @@
     state.borderColor = Renderer.randomBorderColor();
     state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
     state.flashes = [];
+    state.recorder = Replay.createRecorder();
+    state.replay = null;
+    recordFrame();
     state.turbo = [freshTurbo(), freshTurbo()];
     fitCanvas();
     state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor });
@@ -277,17 +283,46 @@
     });
   }
 
+  // Read-only snapshot for the crash replay; safe on the online path.
+  function recordFrame() { Replay.record(state.recorder, state.round, state.elapsed, state.flashes); }
+
   function endRound() {
     const verdicts = crashVerdicts();
     // dump slightly late so presses arriving just after the crash are included
     // label with the live version from the menu so pasted traces can't lie about which build produced them
     setTimeout(() => console.log(`crash trace ${el('version').textContent}:`, JSON.stringify({ verdicts, trace })), 600);
-    Audio.crash(); flashCrash(); state.phase = 'roundover';
+    Audio.crash(); flashCrash();
     state.round.snakes.forEach((s, i) => {
       if (!s.alive) Input.rumble(i, { duration: 300, strong: 0.8, weak: 0.4 });
     });
+    if (state.mode !== '1p') Match.awardRound(state.match, state.round.winnerIndex);
+    updateHud();
+    // Cosmetic debris only, so Math.random is fine even online.
+    state.replay = { playback: Replay.createPlayback(state.recorder, Math.random), sec: 0 };
+    state.phase = 'replay'; state.last = performance.now();
+  }
+
+  function advanceReplay(now) {
+    const r = state.replay;
+    r.sec += Math.min(now - state.last, 250) / 1000; state.last = now;
+    const at = Replay.stageAt(r.playback, r.sec);
+    if (at.stage === 'done') return showResult();
+    const replaying = at.stage === 'replay';
+    const view = replaying ? Replay.viewAt(r.playback, at.simT) : Replay.wreckedView(r.playback);
+    Renderer.render(ctx, view, cell, state.colors, state.borderColor, replaying ? at.simT : view.t,
+      replaying ? view.flashes : [], state.atlas);
+    if (!replaying) Renderer.drawDebris(ctx, r.playback.debris, at.age, state.colors, cell, state.atlas);
+    if (at.stage !== 'explode') Renderer.drawReplayBanner(ctx, COLS, ROWS, cell);
+  }
+
+  // Past this delay a press is aimed at the screen; before it, it's a late
+  // press meant for the replay that just ended.
+  const RESULT_ACTION_LOCK_MS = 250;
+
+  function showResult() {
+    state.replay = null; state.phase = 'roundover';
+    state.actionLockUntil = performance.now() + RESULT_ACTION_LOCK_MS;
     if (state.mode === '1p') return finishSolo();
-    Match.awardRound(state.match, state.round.winnerIndex);
     if (state.match.over) return state.mode === 'gauntlet' ? finishGauntletStage() : finishMatch();
     show(gameover);
     goTitle.textContent = state.round.winnerIndex === null ? 'DRAW'
@@ -423,6 +458,7 @@
       if (state.attract) { advanceAttract(dtSec); renderAttract(); }
       return;
     }
+    if (state.phase === 'replay') return advanceReplay(now);
     if (state.phase !== 'playing') return;
     const dt = Math.min(now - state.last, 250); state.last = now;
     const dtSec = dt / 1000;
@@ -442,6 +478,7 @@
           state.flashes.push({ pos: o.pos, type: o.type, start: state.elapsed });
           o.type === 'bounce' ? Audio.bounceSfx() : Audio.derezSfx();
         });
+        if (state.round.bolts.length) recordFrame();
       }
       state.flashes = state.flashes.filter((f) => state.elapsed - f.start < Renderer.FLASH_DURATION_SEC);
 
@@ -453,7 +490,7 @@
     // A head shot kills between snake ticks, so resolve it here rather than
     // waiting for the next tick's resolve.
     Round.resolve(state.round);
-    if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+    if (state.round.over) { recordFrame(); Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
 
     const normalInt = Speed.tickInterval(state.elapsed, skillLevel());
     const turboInt = Speed.turboInterval(state.elapsed, skillLevel());
@@ -481,6 +518,7 @@
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
+        recordFrame();
         if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
       }
       if (state.acc >= interval && !Net.canTick(o.session)) {
@@ -506,6 +544,7 @@
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
         claimPickups();
+        recordFrame();
         if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
       }
     } else {
@@ -528,6 +567,7 @@
           }
           Round.tickSingle(state.round, i, state.elapsed);
           claimPickups();
+          recordFrame();
           if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
         }
       }
@@ -545,6 +585,8 @@
   }
 
   function onAction() {
+    if (state.phase === 'replay') return showResult(); // this press is spent on the skip
+    if (performance.now() < state.actionLockUntil) return;
     if (isOnline()) {
       if (state.phase === 'gameover') { showMenu(); }
       else if (state.phase === 'roundover' && !state.online.localReady) {
@@ -575,6 +617,12 @@
       stallSince: null, lagging: false };
     state.match = Match.createMatch(start.settings.matchTarget);
     newRound(); startCountdown();
+  }
+
+  // Once the match is won the final screen stands, even if the other player
+  // skips their replay and leaves while this client is still watching its own.
+  function onlineResultDecided() {
+    return state.phase === 'gameover' || (state.phase === 'replay' && state.match.over);
   }
 
   function onlineAbort(message) {
@@ -753,10 +801,10 @@
     },
     onReady: () => { if (isOnline()) { state.online.remoteReady = true; maybeStartNextOnlineRound(); } },
     onJoinError: (msg) => setOnlineStatus(msg.reason),
-    onOpponentLeft: () => { if (isOnline() && state.phase !== 'gameover') onlineAbort('OPPONENT DISCONNECTED'); },
+    onOpponentLeft: () => { if (isOnline() && !onlineResultDecided()) onlineAbort('OPPONENT DISCONNECTED'); },
     onVersionMismatch: () => setOnlineStatus('NEW VERSION AVAILABLE — REFRESH THE PAGE'),
     onClosed: () => {
-      if (isOnline() && state.phase !== 'gameover') onlineAbort('CONNECTION LOST');
+      if (isOnline() && !onlineResultDecided()) onlineAbort('CONNECTION LOST');
       else setOnlineStatus('');
     },
   };
