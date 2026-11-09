@@ -90,11 +90,32 @@ html, body {
 .leaderboard .row { display: flex; justify-content: space-between; padding: 2px 8px; opacity: .9; }
 .leaderboard h3 { letter-spacing: 3px; margin: 0 0 8px; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
 
-.controls-grid { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
-.controls-col { text-align: left; }
-.controls-col h4 { margin: 0 0 6px; letter-spacing: 2px; font-size: 14px;
+#controls-panel { width: min(1180px, 94vw); }
+.controls-art { display: flex; gap: 28px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.controls-figure { flex: 1 1 400px; max-width: 570px; min-width: 0; margin: 0; }
+.controls-figure h4 { margin: 0 0 10px; letter-spacing: 2px; font-size: 14px;
   color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
-.controls-col .hint { display: block; margin: 2px 0; }
+.controls-figure svg { display: block; width: 100%; height: auto; }
+.controls-legend { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: rgba(234,246,255,0.75); }
+.controls-legend li { margin: 4px 0; }
+.controls-legend b { letter-spacing: 1px; margin-right: 6px; }
+.controls-legend .p1 b { color: var(--cyan); }
+.controls-legend .p2 b { color: var(--magenta); }
+.controls-legend .shared b { color: #fff23b; }
+
+.art-key > :not(text) { fill: #0b0f18; stroke: rgba(234,246,255,0.24); stroke-width: 1.5; }
+.art-key text { fill: rgba(234,246,255,0.4); font-size: 13px; }
+.art-key.lit > :not(text) { fill: var(--lit); fill-opacity: 0.24; stroke: var(--lit); stroke-width: 2;
+  filter: drop-shadow(0 0 5px var(--lit)); }
+.art-key.lit text { fill: #fff; font-size: 16px; font-weight: 700; }
+.art-key.p1, .art-key.on { --lit: var(--cyan); }
+.art-key.p2 { --lit: var(--magenta); }
+.art-key.shared { --lit: #fff23b; }
+.art-key.pad-a { --lit: #39ff6a; }
+.art-key.pad-x { --lit: #4aa3ff; }
+.pad-body { fill: #0b0f18; stroke: rgba(234,246,255,0.45); stroke-width: 2; }
+.pad-line { stroke: rgba(234,246,255,0.5); stroke-width: 1.5; }
+.pad-label { fill: #eaf6ff; font-size: 18px; letter-spacing: 1px; }
 
 .hud {
   position: absolute; top: 14px; left: 0; right: 0; display: flex;

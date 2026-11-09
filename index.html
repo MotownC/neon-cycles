@@ -39,35 +39,24 @@
         <button id="controls-toggle" class="neon-btn cyan">CONTROLS</button>
       </div>
       <div id="controls-panel" class="hidden">
-        <div class="controls-grid">
-          <div class="controls-col">
-            <h4>PLAYER 1</h4>
-            <span class="hint">Up: Arrow Up</span>
-            <span class="hint">Down: Arrow Down</span>
-            <span class="hint">Left: Arrow Left</span>
-            <span class="hint">Right: Arrow Right</span>
-            <span class="hint">Turbo: Right Shift</span>
-            <span class="hint">Fire: /</span>
-          </div>
-          <div class="controls-col">
-            <h4>PLAYER 2</h4>
-            <span class="hint">Up: W</span>
-            <span class="hint">Down: S</span>
-            <span class="hint">Left: A</span>
-            <span class="hint">Right: D</span>
-            <span class="hint">Turbo: Left Shift</span>
-            <span class="hint">Fire: Q</span>
-          </div>
-          <div class="controls-col">
+        <div class="controls-art">
+          <figure class="controls-figure">
+            <h4>KEYBOARD</h4>
+            <div id="controls-keyboard"></div>
+            <ul class="controls-legend">
+              <li class="p1"><b>PLAYER 1</b> Arrows steer · Right Shift turbo · / fire</li>
+              <li class="p2"><b>PLAYER 2</b> WASD steer · Left Shift turbo · Q fire</li>
+              <li class="shared"><b>BOTH</b> Enter or Space continue · Esc quit to menu</li>
+            </ul>
+          </figure>
+          <figure class="controls-figure">
             <h4>XBOX CONTROLLER</h4>
-            <span class="hint">Steer: D-pad or Left Stick</span>
-            <span class="hint">Turbo: Hold RB or RT</span>
-            <span class="hint">Fire / Continue: A</span>
-            <span class="hint">Quit to menu: X</span>
-            <span class="hint">Controller 1 is P1, Controller 2 is P2</span>
-          </div>
+            <div id="controls-gamepad"></div>
+            <ul class="controls-legend">
+              <li>Controller 1 is Player 1, Controller 2 is Player 2</li>
+            </ul>
+          </figure>
         </div>
-        <p class="hint">Esc: quit to menu</p>
       </div>
       <div class="skill-toggle settings-group hidden" role="group" aria-label="Skill level">
         <span class="hint">SKILL</span>
@@ -159,6 +148,7 @@
   <script src="src/input.js?v=0.20.6"></script>
   <script src="src/net.js?v=0.20.6"></script>
   <script src="src/online.js?v=0.20.6"></script>
+  <script src="src/controls-art.js?v=0.20.6"></script>
   <script src="src/main.js?v=0.20.6"></script>
 </body>
 </html>

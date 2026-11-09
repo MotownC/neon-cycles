@@ -780,6 +780,8 @@
     settingsGroups.forEach((g) => g.classList.toggle('hidden')));
   el('leaderboard-toggle').addEventListener('click', () => el('leaderboard').classList.toggle('hidden'));
   el('controls-toggle').addEventListener('click', () => el('controls-panel').classList.toggle('hidden'));
+  el('controls-keyboard').innerHTML = ControlsArt.keyboardSvg();
+  el('controls-gamepad').innerHTML = ControlsArt.controllerSvg();
 
   // --- online menu wiring ---
   const setOnlineStatus = (text) => { el('online-status').textContent = text; };
