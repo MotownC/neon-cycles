@@ -52,7 +52,6 @@
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
     atlas: null, // baked sprite atlas, rebaked on round start and resize
-    turboEnabled: false,
     turbo: [freshTurbo(), freshTurbo()],
     rival: 'aggressor',
     activeRival: null, // resolved rival key for the current round, when rival === 'random'
@@ -201,7 +200,6 @@
   }
 
   function turboTag(t, color) {
-    if (!state.turboEnabled) return '';
     if (t.cooldown > 0) {
       return ` <span style="color:${color};opacity:0.4;font-size:14px">⏳ ${Math.ceil(t.cooldown)}s</span>`;
     }
@@ -408,7 +406,6 @@
   }
 
   function updateTurbo(dtSec) {
-    if (!state.turboEnabled) return;
     for (let i = 0; i < state.turbo.length; i++) {
       const t = state.turbo[i];
       if (t.cooldown > 0) {
@@ -435,7 +432,6 @@
   }
 
   function isBoosting(playerIndex) {
-    if (!state.turboEnabled) return false;
     const t = state.turbo[playerIndex];
     return t.held && t.fuel > 0 && t.cooldown <= 0;
   }
@@ -526,8 +522,9 @@
         if (o.stallSince === null) o.stallSince = now;
         o.lagging = now - o.stallSince > 500;
       } else { o.stallSince = null; o.lagging = false; }
-    } else if (!state.turboEnabled) {
-      // Original single-accumulator path (no turbo feature)
+    } else if (!isBoosting(0) && !isBoosting(1)) {
+      // Nobody boosting: one shared accumulator, so snakes step together and
+      // an exact head-on is a draw rather than a win for whoever ticks first.
       state.acc += dt;
       while (state.acc >= normalInt) {
         state.acc -= normalInt;
@@ -548,6 +545,7 @@
         recordFrame();
         if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
       }
+      state.turbo.forEach((t) => { t.acc = state.acc; }); // no hiccup if a boost starts
     } else {
       // Per-snake tick: each snake has its own interval based on boost state
       const snakes = state.round.snakes;
@@ -572,6 +570,7 @@
           if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
         }
       }
+      state.acc = state.turbo[0].acc; // no hiccup when the boost ends
     }
 
     updateHud();
@@ -683,7 +682,7 @@
     onQuit: () => { if (state.phase !== 'menu') showMenu(); },
     onTurbo: (i, pressed) => {
       if (isOnline()) return;
-      if (state.phase !== 'playing' || !state.turboEnabled) return;
+      if (state.phase !== 'playing') return;
       if (!state.round.snakes[i] || !state.round.snakes[i].alive) return;
       // In CPU-driven modes, ignore P2 turbo (rivals don't turbo)
       if (i === 1 && vsCpu()) return;
@@ -728,12 +727,6 @@
   skillButtons.forEach((btn) => btn.addEventListener('click', () => {
     state.skillLevel = parseInt(btn.dataset.skill, 10);
     skillButtons.forEach((b) => b.classList.toggle('active', b === btn));
-  }));
-
-  const turboButtons = document.querySelectorAll('[data-turbo]');
-  turboButtons.forEach((btn) => btn.addEventListener('click', () => {
-    state.turboEnabled = btn.dataset.turbo === 'on';
-    turboButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
   const rivalButtons = document.querySelectorAll('[data-rival]');

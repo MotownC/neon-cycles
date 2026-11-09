@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Neon Cycles** — a browser-based Tron-style light-cycle game. Snakes leave glowing trails. Crashing into the arena boundary, an interior wall, any trail, or head-on with the opponent ends the round. Vanilla JS, HTML5 canvas, Web Audio — **no build step, no framework; the browser game has no dependencies** (the online server has one, `ws`, server-only).
 
-Modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, local 2P (first to 10 rounds), Gauntlet (CPU rival ladder), and Online (remote 2P via room codes). Menu options: wall density (none/low/med/high), rival, turbo on/off, trail mode, player color.
+Modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, local 2P (first to 10 rounds), Gauntlet (CPU rival ladder), and Online (remote 2P via room codes). Menu options: wall density (none/low/med/high), rival, trail mode, player color.
 
 ## Commands
 
@@ -41,8 +41,8 @@ Keep new game logic in pure modules with tests; keep DOM/canvas/audio access out
 
 `main.js` runs a `requestAnimationFrame` loop with an accumulator: real time is converted into fixed logic ticks whose interval shrinks as the round progresses (`Speed.tickInterval(elapsed)`, 110ms → 55ms floor). Two ticking paths exist:
 
-- **Turbo off:** one shared accumulator; `Round.tick(round)` advances all snakes simultaneously with proper simultaneous-collision (head-on) resolution.
-- **Turbo on:** per-snake accumulators; each snake ticks at its own interval (boosting snakes tick faster) via `Round.tickSingle(round, i)`. Turbo is a fuel/cooldown resource (`freshTurbo()` in `main.js`, constants in `speed.js`), held with Shift keys.
+- **Nobody boosting:** one shared accumulator; `Round.tick(round)` advances all snakes simultaneously with proper simultaneous-collision (head-on) resolution.
+- **Someone boosting:** per-snake accumulators; each snake ticks at its own interval (boosting snakes tick faster) via `Round.tickSingle(round, i)`. Turbo is a fuel/cooldown resource (`freshTurbo()` in `main.js`, constants in `speed.js`), held with Shift keys.
 
 Game phases in `main.js` state: `menu → countdown → playing → replay → roundover/gameover`. `replay` is the crash explosion plus slow-motion replay; scoring happens as it starts (`endRound`), the result screen when it ends or Enter skips it (`showResult`). It only reads recorded frames, never the sim. Direction input is *buffered* (up to 3 turns, each validated against the previous queued direction) so fast S-turns work — see `Snake.bufferDirection`.
 
