@@ -38,6 +38,12 @@
       win: 'GRANDMASTER: I saw that twelve moves ago.', lose: 'GRANDMASTER: ...an inefficiency. corrected next round.' },
   };
 
+  // The one setting that's remembered: it depends on the machine, not the mood.
+  const GFX_KEY = 'neon-cycles-gfx';
+  function savedGfx() {
+    try { return window.localStorage.getItem(GFX_KEY) === 'low' ? 'low' : 'high'; } catch (e) { return 'high'; }
+  }
+
   const state = {
     phase: 'title', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'low',
@@ -60,6 +66,7 @@
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
     attract: null, // decorative menu-screen loop; see initAttract()
     menuSelected: null, // menu element highlighted for keyboard/controller selection
+    gfx: savedGfx(), // 'high' adds bloom and per-frame lighting; 'low' is for slow machines
   };
 
   // Both CPU-driven modes share the same input/AI plumbing; they differ only
@@ -131,8 +138,37 @@
     state.replay = null;
     recordFrame();
     state.turbo = [freshTurbo(), freshTurbo()];
+    glides = [null, null];
     fitCanvas();
-    state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor });
+    state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS });
+    paint(); // the new arena shows behind the countdown
+  }
+
+  // One finished frame: the scene, then bloom over it on HIGH graphics.
+  function paint(view = state.round, t = state.elapsed, flashes = state.flashes) {
+    Renderer.render(ctx, view, cell, state.colors, state.borderColor, t, flashes, state.atlas, state.gfx);
+    if (state.gfx === 'high') Renderer.bloom(ctx);
+  }
+
+  // Per snake: the glide its last tick started, if it moved (see glide.js).
+  let glides = [null, null];
+
+  // Run a sim tick and note which snakes it moved; `only` limits that to one snake.
+  function tickGliding(run, only) {
+    const snakes = state.round.snakes;
+    const indices = only === undefined ? snakes.map((_, i) => i) : [only];
+    const before = indices.map((i) => Glide.snapshot(snakes[i]));
+    run();
+    indices.forEach((i, k) => { glides[i] = Glide.note(before[k], snakes[i]); });
+  }
+
+  // The round as drawn this frame: cycles part-way between cells.
+  function glidingRound(dt, normalInt, turboInt) {
+    const snakes = state.round.snakes.map((s, i) => {
+      Glide.advance(glides[i], isOnline() ? state.acc : state.turbo[i].acc, dt);
+      return Glide.view(s, glides[i], isBoosting(i) ? turboInt : normalInt);
+    });
+    return { ...state.round, snakes };
   }
 
   // Decorative menu-screen loop: a cycle tracing a box around the mode
@@ -188,7 +224,11 @@
   function renderAttract() {
     const a = state.attract;
     Renderer.clearBackground(ctx, COLS, ROWS, cell);
-    Renderer.drawSnake(ctx, a.snake, Renderer.PALETTE[a.colorIndex], cell, 'fade', a.elapsed, false, a.atlas);
+    const body = a.snake.body;
+    const snake = body.length > 1
+      ? Glide.view(a.snake, { from: body[body.length - 2], fromDir: a.snake.direction, ms: a.acc }, ATTRACT_TICK_MS)
+      : a.snake;
+    Renderer.drawSnake(ctx, snake, Renderer.PALETTE[a.colorIndex], cell, 'fade', a.elapsed, false, a.atlas);
   }
 
   function startCountdown() {
@@ -312,8 +352,9 @@
     const replaying = at.stage === 'replay';
     const view = replaying ? Replay.viewAt(r.playback, at.simT) : Replay.wreckedView(r.playback);
     Renderer.render(ctx, view, cell, state.colors, state.borderColor, replaying ? at.simT : view.t,
-      replaying ? view.flashes : [], state.atlas);
+      replaying ? view.flashes : [], state.atlas, state.gfx);
     if (!replaying) Renderer.drawDebris(ctx, r.playback.debris, at.age, state.colors, cell, state.atlas);
+    if (state.gfx === 'high') Renderer.bloom(ctx); // before the banner, so the text stays crisp
     if (at.stage !== 'explode') Renderer.drawReplayBanner(ctx, COLS, ROWS, cell);
   }
 
@@ -490,7 +531,7 @@
     // A head shot kills between snake ticks, so resolve it here rather than
     // waiting for the next tick's resolve.
     Round.resolve(state.round);
-    if (state.round.over) { recordFrame(); Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+    if (state.round.over) { recordFrame(); paint(); return endRound(); }
 
     const normalInt = Speed.tickInterval(state.elapsed, skillLevel());
     const turboInt = Speed.turboInterval(state.elapsed, skillLevel());
@@ -512,14 +553,14 @@
         Online.send(Net.localTurns(o.session, o.pending.splice(0), hash));
         const { turns } = Net.takeTick(o.session);
         turns.forEach((dirs, i) => dirs.forEach((d) => steer(state.round.snakes[i], d)));
-        Round.tick(state.round, state.elapsed);
+        tickGliding(() => Round.tick(state.round, state.elapsed));
         state.elapsed += interval / 1000; // simulated time: identical on both machines
         interval = Speed.tickInterval(state.elapsed, skillLevel());
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
         recordFrame();
-        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+        if (state.round.over) { paint(); return endRound(); }
       }
       if (state.acc >= interval && !Net.canTick(o.session)) {
         if (o.stallSince === null) o.stallSince = now;
@@ -540,13 +581,13 @@
             if (state.round.firedCount[1] !== before) Audio.fireSfx();
           }
         }
-        Round.tick(state.round, state.elapsed, frozen);
+        tickGliding(() => Round.tick(state.round, state.elapsed, frozen));
         tr({ t: now | 0,
           tick: state.round.snakes.map((s) => (s.alive ? s.direction : 'dead')),
           pos: state.round.snakes.map((s) => { const h = s.body[s.body.length - 1]; return `${h.x},${h.y}`; }) });
         claimPickups();
         recordFrame();
-        if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+        if (state.round.over) { paint(); return endRound(); }
       }
       state.turbo.forEach((t) => { t.acc = state.acc; }); // no hiccup if a boost starts
     } else {
@@ -567,17 +608,17 @@
               if (state.round.firedCount[1] !== before) Audio.fireSfx();
             }
           }
-          Round.tickSingle(state.round, i, state.elapsed);
+          tickGliding(() => Round.tickSingle(state.round, i, state.elapsed), i);
           claimPickups();
           recordFrame();
-          if (state.round.over) { Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas); return endRound(); }
+          if (state.round.over) { paint(); return endRound(); }
         }
       }
       state.acc = state.turbo[0].acc; // no hiccup when the boost ends
     }
 
     updateHud();
-    Renderer.render(ctx, state.round, cell, state.colors, state.borderColor, state.elapsed, state.flashes, state.atlas);
+    paint(glidingRound(dt, normalInt, turboInt));
   }
 
   function beginGame(mode) {
@@ -813,6 +854,16 @@
     trailButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
+  const gfxButtons = document.querySelectorAll('[data-gfx]');
+  gfxButtons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.gfx === state.gfx);
+    btn.addEventListener('click', () => {
+      state.gfx = btn.dataset.gfx;
+      gfxButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      try { window.localStorage.setItem(GFX_KEY, state.gfx); } catch (e) { /* private mode: just not remembered */ }
+    });
+  });
+
   const musicButtons = document.querySelectorAll('[data-music]');
   const musicFileInput = el('music-file-input');
   const musicCustomBtn = el('music-custom-btn');
@@ -910,7 +961,7 @@
       initAttract();
     } else if (state.round) {
       fitCanvas();
-      state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor });
+      state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS });
     }
   });
 

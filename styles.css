@@ -79,9 +79,9 @@ html, body {
 .neon-btn.magenta { border-color: var(--magenta); text-shadow: 0 0 6px var(--magenta);
   box-shadow: 0 0 12px rgba(255,43,214,0.35) inset, 0 0 12px rgba(255,43,214,0.35); }
 
-.skill-toggle, .wall-toggle, .trail-toggle, .rival-toggle, .target-toggle, .music-toggle { display: flex; align-items: center; gap: 10px; }
+.skill-toggle, .wall-toggle, .trail-toggle, .rival-toggle, .target-toggle, .music-toggle, .gfx-toggle { display: flex; align-items: center; gap: 10px; }
 .rival-toggle { flex-wrap: wrap; justify-content: center; max-width: 90vw; }
-.skill-toggle .hint, .wall-toggle .hint, .trail-toggle .hint, .rival-toggle .hint, .target-toggle .hint, .music-toggle .hint { opacity: .5; font-size: 13px; }
+.skill-toggle .hint, .wall-toggle .hint, .trail-toggle .hint, .rival-toggle .hint, .target-toggle .hint, .music-toggle .hint, .gfx-toggle .hint { opacity: .5; font-size: 13px; }
 .wall-btn {
   cursor: pointer; background: rgba(5,6,10,0.75); color: #eaf6ff; opacity: .7;
   border: 1px solid rgba(234,246,255,0.35); border-radius: 6px;

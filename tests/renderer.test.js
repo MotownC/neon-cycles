@@ -43,6 +43,7 @@ function mockCtx() {
     save() {}, restore() {},
     beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, closePath() {}, fill() {},
     clearRect() {}, strokeRect() {}, translate() {}, rotate() {}, fillRect() {},
+    rect() {}, clip() {}, createLinearGradient() { return { addColorStop() {} }; },
     drawImage(...args) { drawImageCalls.push(args); },
     set fillStyle(v) {}, get fillStyle() { return ''; },
     set strokeStyle(v) {}, get strokeStyle() { return ''; },

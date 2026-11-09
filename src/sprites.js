@@ -279,15 +279,100 @@
     return canvas;
   }
 
+  // --- arena: the whole static backdrop, drawn once per round ----------------
+  const MAJOR_EVERY = 4; // cells between the brighter grid lines
+
+  function bakeArena(cols, rows, cell, borderColor) {
+    const dpr = window.devicePixelRatio || 1;
+    const W = cols * cell, H = rows * cell;
+    const canvas = document.createElement('canvas');
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const reach = Math.hypot(W, H) / 2;
+    const radial = (stops) => {
+      const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, reach);
+      stops.forEach(([at, c]) => g.addColorStop(at, c));
+      return g;
+    };
+    // floor: lit in the middle, falling off to near-black at the walls
+    ctx.fillStyle = radial([[0, '#111c38'], [0.55, '#080d1b'], [1, '#030408']]);
+    ctx.fillRect(0, 0, W, H);
+    // a faint wash of this round's border colour so every arena feels different
+    ctx.globalAlpha = 0.09;
+    ctx.fillStyle = radial([[0, borderColor], [1, 'rgba(0,0,0,0)']]);
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+
+    const lines = (every) => {
+      ctx.beginPath();
+      for (let x = 0; x <= cols; x += every) { ctx.moveTo(x * cell, 0); ctx.lineTo(x * cell, H); }
+      for (let y = 0; y <= rows; y += every) { ctx.moveTo(0, y * cell); ctx.lineTo(W, y * cell); }
+      ctx.stroke();
+    };
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(80,130,210,0.10)';
+    lines(1);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(95,165,255,0.26)';
+    ctx.shadowColor = '#3a8cff'; ctx.shadowBlur = cell * 0.35;
+    lines(MAJOR_EVERY);
+    // bright nodes where the major lines cross
+    ctx.fillStyle = 'rgba(170,215,255,0.6)';
+    ctx.beginPath();
+    for (let x = MAJOR_EVERY; x < cols; x += MAJOR_EVERY) {
+      for (let y = MAJOR_EVERY; y < rows; y += MAJOR_EVERY) {
+        ctx.moveTo(x * cell, y * cell);
+        ctx.arc(x * cell, y * cell, Math.max(1, cell * 0.07), 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // vignette
+    ctx.fillStyle = radial([[0.55, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.6)']]);
+    ctx.fillRect(0, 0, W, H);
+
+    // the outer wall kills, so it must be unmistakable: glowing line, inner
+    // echo, and white-hot corner brackets
+    ctx.strokeStyle = borderColor; ctx.shadowColor = borderColor;
+    ctx.lineWidth = 2; ctx.shadowBlur = cell * 0.9;
+    ctx.strokeRect(1, 1, W - 2, H - 2);
+    ctx.globalAlpha = 0.35; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+    ctx.strokeRect(5, 5, W - 10, H - 10);
+    ctx.globalAlpha = 1;
+    const arm = cell * 1.6;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.shadowBlur = cell * 0.6; ctx.lineCap = 'square';
+    ctx.beginPath();
+    for (const [x, y, sx, sy] of [[2, 2, 1, 1], [W - 2, 2, -1, 1], [2, H - 2, 1, -1], [W - 2, H - 2, -1, -1]]) {
+      ctx.moveTo(x + sx * arm, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * arm);
+    }
+    ctx.stroke();
+    return canvas;
+  }
+
+  // --- light pool: the glow a cycle throws on the floor around it ------------
+  function bakePool(color) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 96; // a soft gradient survives being scaled up
+    const ctx = canvas.getContext('2d');
+    const g = ctx.createRadialGradient(48, 48, 0, 48, 48, 48);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.22; ctx.fillStyle = g; // faint: it must never hide the cycle
+    ctx.fillRect(0, 0, 96, 96);
+    return canvas;
+  }
+
   // Bake the full atlas for the current cell size / colors / border color.
-  // Rebake whenever any of those change (round start, resize).
-  function bake({ cell, colors, borderColor }) {
+  // Rebake whenever any of those change (round start, resize). Pass cols and
+  // rows to also get the arena backdrop.
+  function bake({ cell, colors, borderColor, cols, rows }) {
     const atlas = {
-      cell, cycles: {}, bolts: {}, trails: {}, pickups: {},
+      cell, cycles: {}, bolts: {}, trails: {}, pickups: {}, pools: {},
       wall: bakeWall(cell, borderColor),
+      arena: cols && rows ? bakeArena(cols, rows, cell, borderColor) : null,
       spans: { cycle: 3, bolt: 3, trail: 3, wall: 2, pickup: 3 },
     };
     for (const color of new Set(colors)) {
+      atlas.pools[color] = bakePool(color);
       atlas.cycles[color] = bakeCycle(cell, color);
       atlas.bolts[color] = Array.from({ length: BOLT_FRAMES }, (_, i) => bakeBolt(cell, color, i));
       atlas.trails[color] = {};

@@ -45,7 +45,8 @@
     ctx.fillRect(0, 0, cols * cell, rows * cell);
   }
 
-  function drawGrid(ctx, cols, rows, cell, borderColor) {
+  function drawGrid(ctx, cols, rows, cell, borderColor, atlas) {
+    if (atlas && atlas.arena) { ctx.drawImage(atlas.arena, 0, 0, cols * cell, rows * cell); return; }
     clearBackground(ctx, cols, rows, cell);
     ctx.strokeStyle = 'rgba(60,90,140,0.12)'; ctx.lineWidth = 1;
     for (let x = 0; x <= cols; x++) { ctx.beginPath(); ctx.moveTo(x*cell, 0); ctx.lineTo(x*cell, rows*cell); ctx.stroke(); }
@@ -58,7 +59,99 @@
     ctx.restore();
   }
 
+  // A soft band of light drifting down the floor, so the arena is never static.
+  const SWEEP_PERIOD_SEC = 7;
+  function drawSweep(ctx, cols, rows, cell, elapsedSec) {
+    const band = cell * 6, H = rows * cell;
+    const y = ((elapsedSec % SWEEP_PERIOD_SEC) / SWEEP_PERIOD_SEC) * (H + band * 2) - band;
+    const g = ctx.createLinearGradient(0, y - band, 0, y + band);
+    g.addColorStop(0, 'rgba(90,170,255,0)'); g.addColorStop(0.5, 'rgba(90,170,255,0.08)'); g.addColorStop(1, 'rgba(90,170,255,0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y - band, cols * cell, band * 2);
+    ctx.restore();
+  }
+
+  // The arena wall breathing: an extra glow over the baked border.
+  function drawBorderPulse(ctx, cols, rows, cell, borderColor, elapsedSec) {
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.3 * Math.sin(elapsedSec * 2.2);
+    ctx.strokeStyle = borderColor; ctx.lineWidth = 2;
+    ctx.shadowColor = borderColor; ctx.shadowBlur = cell * 1.4;
+    ctx.strokeRect(1, 1, cols * cell - 2, rows * cell - 2);
+    ctx.restore();
+  }
+
+  // Each live cycle lights the floor around it in its own colour.
+  const POOL_RADIUS_CELLS = 4.5;
+  function drawLightPools(ctx, snakes, colors, cell, atlas) {
+    const r = POOL_RADIUS_CELLS * cell;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    snakes.forEach((s, i) => {
+      const img = atlas.pools && atlas.pools[colors[i]];
+      if (!img || s.wrecked || s.alive === false) return;
+      const p = cyclePos(s);
+      ctx.drawImage(img, (p.x + 0.5) * cell - r, (p.y + 0.5) * cell - r, r * 2, r * 2);
+    });
+    ctx.restore();
+  }
+
+  // Bloom: bright pixels bleed light onto their surroundings. The frame is
+  // shrunk, squared against itself (so dark areas drop out and only the
+  // bright ones survive), blurred, and added back on top.
+  let bloomBuf = null;
+  function bloom(ctx) {
+    const src = ctx.canvas, w = src.width, h = src.height;
+    if (!bloomBuf || bloomBuf.w !== w || bloomBuf.h !== h) {
+      const make = (cw, ch) => {
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, cw); c.height = Math.max(1, ch);
+        return c;
+      };
+      bloomBuf = { w, h, near: make(w >> 2, h >> 2), far: make(w >> 3, h >> 3) };
+    }
+    const { near, far } = bloomBuf;
+    const nctx = near.getContext('2d'), fctx = far.getContext('2d');
+    nctx.imageSmoothingQuality = 'high';
+    nctx.globalCompositeOperation = 'copy';
+    nctx.drawImage(src, 0, 0, near.width, near.height);
+    nctx.globalCompositeOperation = 'multiply';
+    nctx.drawImage(near, 0, 0);
+    fctx.globalCompositeOperation = 'copy';
+    if ('filter' in fctx) fctx.filter = 'blur(2px)'; // browsers without it still get the soft upscale
+    fctx.drawImage(near, 0, 0, far.width, far.height);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.3; ctx.drawImage(near, 0, 0, w, h);
+    ctx.globalAlpha = 0.55; ctx.drawImage(far, 0, 0, w, h);
+    ctx.restore();
+  }
+
   const ANGLES = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+  const VECTORS = { right: { x: 1, y: 0 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, up: { x: 0, y: -1 } };
+
+  // Nose angle, swinging round from the old heading just after a turn.
+  function cycleAngle(snake) {
+    const to = ANGLES[snake.direction];
+    if (!snake.turnFrom || !(snake.turnT < 1)) return to;
+    let d = to - ANGLES[snake.turnFrom];
+    if (d > Math.PI) d -= Math.PI * 2;
+    if (d < -Math.PI) d += Math.PI * 2;
+    return to - d * (1 - snake.turnT);
+  }
+
+  // Clip to everything behind a gliding cycle, so its trail ends at the
+  // cycle and not at the head cell it hasn't visibly reached yet.
+  function clipBehind(ctx, pos, v, cell) {
+    const px = (pos.x + 0.5) * cell, py = (pos.y + 0.5) * cell, far = 1e5;
+    ctx.beginPath();
+    if (v.x) ctx.rect(v.x > 0 ? -far : px, -far, far + (v.x > 0 ? px : 0), far * 2);
+    else ctx.rect(-far, v.y > 0 ? -far : py, far * 2, far + (v.y > 0 ? py : 0));
+    ctx.clip();
+  }
 
   // Sprites are baked on padded square canvases; blit centered on the cell.
   function blit(ctx, img, cellX, cellY, cell, span) {
@@ -76,7 +169,7 @@
     const span = atlas.spans.cycle;
     ctx.save();
     ctx.translate((pos.x + 0.5) * cell, (pos.y + 0.5) * cell);
-    ctx.rotate(ANGLES[snake.direction]);
+    ctx.rotate(cycleAngle(snake));
     ctx.drawImage(img, -span * cell / 2, -span * cell / 2, span * cell, span * cell);
     ctx.restore();
   }
@@ -146,9 +239,13 @@
     const tiles = atlas.trails[color];
     const span = atlas.spans.trail;
     const baseAlpha = snake.phase ? 0.5 : 1; // ghosted-once charge still armed: read as semi-transparent
+    const n = snake.body.length, head = snake.body[n - 1], at = snake.cycleAt, v = VECTORS[snake.direction];
+    // live glide: the cycle is still short of its head cell
+    const trailing = !!at && (head.x - at.x) * v.x + (head.y - at.y) * v.y > 0.001;
     ctx.save();
-    for (let i = 0; i < snake.body.length; i++) {
+    for (let i = 0; i < n; i++) {
       const c = snake.body[i];
+      if (trailing && i === Math.max(0, n - 2)) clipBehind(ctx, at, v, cell); // newest two tiles only
       let a = baseAlpha;
       if (trailMode === 'fade') a *= fadeAlpha(elapsedSec - c.t, T.FADE_SECONDS);
       ctx.globalAlpha = a;
@@ -249,9 +346,16 @@
     return `hsl(${h}, 100%, 55%)`;
   }
 
-  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = [], atlas) {
+  // gfx 'low' skips the per-frame lighting extras (and the caller skips bloom).
+  function render(ctx, round, cell, colors = COLORS, borderColor = '#ff2b4a', elapsedSec = 0, flashes = [], atlas, gfx = 'high') {
     const { board, snakes, bolts, pickups, frozenUntil, hazard } = round;
-    drawGrid(ctx, board.width, board.height, cell, borderColor);
+    const fancy = gfx !== 'low';
+    drawGrid(ctx, board.width, board.height, cell, borderColor, atlas);
+    if (fancy) {
+      drawSweep(ctx, board.width, board.height, cell, elapsedSec);
+      drawBorderPulse(ctx, board.width, board.height, cell, borderColor, elapsedSec);
+      drawLightPools(ctx, snakes, colors, cell, atlas);
+    }
     drawWalls(ctx, board.walls, cell, atlas);
     drawHazardTelegraph(ctx, hazard, cell, elapsedSec);
     drawPickups(ctx, pickups, cell, elapsedSec, atlas);
@@ -264,6 +368,6 @@
   return {
     __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
     pickOpponentColor, randomBorderColor, fadeAlpha, fit,
-    clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, drawDebris, drawReplayBanner, render,
+    bloom, clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, drawDebris, drawReplayBanner, render,
   };
 });
