@@ -39,6 +39,29 @@ html, body {
   overflow-y: auto; padding: 24px 0;
 }
 
+.title-screen { position: absolute; inset: 0; background: var(--bg); overflow: hidden; cursor: pointer;
+  animation: title-fade .6s ease-out; }
+.title-screen img { display: block; width: 100%; height: 100%; object-fit: cover;
+  animation: title-drift 20s ease-out forwards; }
+@media (max-aspect-ratio: 4/3) { .title-screen img { object-fit: contain; } }
+.title-hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; text-align: center;
+  font-size: 14px; letter-spacing: 3px; color: #eaf6ff; text-shadow: 0 0 8px var(--cyan), 0 0 3px #000;
+  animation: title-pulse 1.6s ease-in-out infinite; }
+@keyframes title-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes title-drift { from { transform: scale(1); } to { transform: scale(1.05); } }
+@keyframes title-pulse { 0%, 100% { opacity: .95; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .title-screen, .title-screen img, .title-hint { animation: none; }
+}
+
+/* Road and cycles only: scaled so the art's logo and PRESS START fall off the top. */
+#menu-art { position: absolute; inset: 0; pointer-events: none; opacity: .8;
+  background: url(assets/title.jpg) center bottom / auto 180% no-repeat; }
+#menu { background: radial-gradient(ellipse at center, rgba(5,6,10,0.5), rgba(5,6,10,0.8)); }
+/* Small text needs a dark halo to survive the bright parts of the art. */
+#menu .hint, .controls-legend { text-shadow: 0 1px 3px #000, 0 0 3px #000, 0 0 6px #000; }
+#menu .settings-group .hint { opacity: .9; }
+
 .neon-title {
   font-size: clamp(28px, 7vw, 84px); letter-spacing: 6px; margin: 0;
   color: #fff;
@@ -46,7 +69,7 @@ html, body {
 }
 .menu-buttons { display: flex; flex-direction: column; gap: 16px; }
 .neon-btn {
-  cursor: pointer; background: transparent; color: #eaf6ff;
+  cursor: pointer; background: rgba(5,6,10,0.6); color: #eaf6ff;
   border: 2px solid var(--cyan); border-radius: 8px;
   padding: 14px 26px; font-size: 18px; letter-spacing: 2px;
   text-shadow: 0 0 6px var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,0.35) inset, 0 0 12px rgba(0,240,255,0.35);
@@ -60,7 +83,7 @@ html, body {
 .rival-toggle { flex-wrap: wrap; justify-content: center; max-width: 90vw; }
 .skill-toggle .hint, .wall-toggle .hint, .trail-toggle .hint, .rival-toggle .hint, .target-toggle .hint, .music-toggle .hint { opacity: .5; font-size: 13px; }
 .wall-btn {
-  cursor: pointer; background: transparent; color: #eaf6ff; opacity: .55;
+  cursor: pointer; background: rgba(5,6,10,0.75); color: #eaf6ff; opacity: .7;
   border: 1px solid rgba(234,246,255,0.35); border-radius: 6px;
   padding: 6px 14px; font-size: 13px; letter-spacing: 1px;
   transition: opacity .15s ease, border-color .15s ease, box-shadow .15s ease;
@@ -118,7 +141,8 @@ html, body {
 .art-key.pad-a { --lit: #39ff6a; }
 .pad-body { fill: #0b0f18; stroke: rgba(234,246,255,0.45); stroke-width: 2; }
 .pad-line { stroke: rgba(234,246,255,0.5); stroke-width: 1.5; }
-.pad-label { fill: #eaf6ff; font-size: 18px; letter-spacing: 1px; }
+.pad-label { fill: #eaf6ff; font-size: 18px; letter-spacing: 1px;
+  paint-order: stroke; stroke: #05060a; stroke-width: 5px; stroke-linejoin: round; }
 
 .hud {
   position: absolute; top: 14px; left: 0; right: 0; display: flex;

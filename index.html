@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NEON CYCLES</title>
+  <title>CYBER CYCLES</title>
   <link rel="stylesheet" href="styles.css?v=0.20.12" />
 </head>
 <body>
   <div id="stage">
     <canvas id="game"></canvas>
+    <div id="menu-art" class="hidden"></div>
 
     <!-- Menu overlay -->
     <section id="menu" class="overlay">
-      <h1 class="neon-title">NEON&nbsp;CYCLES</h1>
+      <h1 class="neon-title">CYBER&nbsp;CYCLES</h1>
       <div class="menu-buttons">
         <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
         <button data-mode="cpu" class="neon-btn cyan">1 PLAYER — VS CPU</button>
@@ -122,6 +123,12 @@
       <h2 id="go-title" class="neon-title"></h2>
       <div id="go-body"></div>
       <button id="go-continue" class="neon-btn">PRESS ENTER</button>
+    </section>
+
+    <!-- Title screen: first thing shown on load -->
+    <section id="title" class="title-screen hidden">
+      <img src="assets/title.jpg" alt="Cyber Cycles. Press start." />
+      <p class="title-hint">ANY KEY · CLICK · CONTROLLER A</p>
     </section>
   </div>
 

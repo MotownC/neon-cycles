@@ -1,4 +1,4 @@
-# Neon Cycles
+# Cyber Cycles
 
 A neon light-cycle game. Snakes leave permanent glowing trails — hit any wall,
 your own trail, or your opponent's and you crash.

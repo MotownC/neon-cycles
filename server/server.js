@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 8735;
 const ROOT = path.join(__dirname, '..');
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.png': 'image/png', '.ico': 'image/x-icon', '.md': 'text/plain',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.md': 'text/plain',
 };
 
 function createGameServer() {

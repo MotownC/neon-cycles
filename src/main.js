@@ -11,6 +11,7 @@
   const el = (id) => document.getElementById(id);
   const menu = el('menu'), countdown = el('countdown'), hud = el('hud'),
         gameover = el('gameover'), countSpan = el('count'),
+        titleScreen = el('title'), menuArt = el('menu-art'),
         goTitle = el('go-title'), goBody = el('go-body');
 
   function freshTurbo() {
@@ -38,7 +39,7 @@
   };
 
   const state = {
-    phase: 'menu', mode: '1p', round: null, match: null,
+    phase: 'title', mode: '1p', round: null, match: null,
     elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'low',
     matchTarget: MATCH_TARGET,
     skillLevel: 2, // menu default; Speed.DEFAULT_SKILL stays the baseline speed
@@ -92,8 +93,9 @@
   window.__trace = trace; // inspectable from the console at any time
   function tr(entry) { trace.push(entry); if (trace.length > 64) trace.shift(); }
 
-  function show(node) { for (const o of [menu, countdown, gameover]) o.classList.add('hidden');
-    if (node) node.classList.remove('hidden'); }
+  function show(node) { for (const o of [menu, countdown, gameover, titleScreen]) o.classList.add('hidden');
+    if (node) node.classList.remove('hidden');
+    menuArt.classList.toggle('hidden', node !== menu); }
 
   function newRound() {
     const specs = state.mode === '1p'
@@ -585,7 +587,12 @@
     newRound(); startCountdown();
   }
 
+  function leaveTitle() {
+    if (state.phase === 'title') showMenu();
+  }
+
   function onAction() {
+    if (state.phase === 'title') return leaveTitle();
     if (state.phase === 'replay') return showResult(); // this press is spent on the skip
     if (performance.now() < state.actionLockUntil) return;
     if (state.phase === 'menu') return activateMenuItem();
@@ -734,7 +741,7 @@
         heading: snake.direction, queue: `${before}->${snake.queue.join('<')}` });
     },
     onAction,
-    onQuit: () => { if (state.phase !== 'menu') showMenu(); else closeOpenMenuPanel(); },
+    onQuit: () => { if (state.phase !== 'menu') showMenu(); else closeOpenMenuPanel(); }, // on the title, Menu is "start"
     onTurbo: (i, pressed) => {
       if (isOnline()) return;
       if (state.phase !== 'playing') return;
@@ -756,6 +763,12 @@
     },
   };
   Input.attach(inputHandlers);
+  // Registered after Input.attach: an Enter press has already left the title
+  // through onAction by now, so one press can't also pick a menu item.
+  window.addEventListener('keydown', (e) => {
+    if (!e.repeat && !e.altKey && !e.ctrlKey && !e.metaKey) leaveTitle();
+  });
+  titleScreen.addEventListener('click', leaveTitle);
   document.querySelectorAll('[data-mode]').forEach((btn) =>
     btn.addEventListener('click', () => {
       // Unlock the custom audio element now, while we still have a user gesture —
@@ -901,6 +914,6 @@
     }
   });
 
-  showMenu();
+  show(titleScreen);
   state.raf = requestAnimationFrame(loop);
 })();
