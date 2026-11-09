@@ -144,15 +144,92 @@ html, body {
 .pad-label { fill: #eaf6ff; font-size: 18px; letter-spacing: 1px;
   paint-order: stroke; stroke: #05060a; stroke-width: 5px; stroke-linejoin: round; }
 
+/* In-game HUD: one panel per player in the arena's top corners (markup from
+   hud.js). No backing box, so the arena underneath stays readable. main.js
+   sets its width and top to match the canvas. */
 .hud {
-  position: absolute; top: 14px; left: 0; right: 0; display: flex;
-  justify-content: center; gap: 48px; font-size: 22px; letter-spacing: 3px;
-  pointer-events: none; text-shadow: 0 0 8px currentColor;
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100%;
+  display: flex; justify-content: space-between; padding: 10px 14px 0;
+  pointer-events: none; letter-spacing: 2px;
 }
-.hud .p1 { color: var(--cyan); } .hud .p2 { color: var(--magenta); }
+.hud-panel { display: flex; flex-direction: column; gap: 5px; color: var(--c); opacity: .92;
+  text-shadow: 0 0 8px var(--c), 0 0 3px #000; }
+.hud-panel.right { align-items: flex-end; margin-left: auto; }
+.hud-top, .hud-turbo, .hud-ammo { display: flex; align-items: center; gap: 8px; }
+.hud-top { align-items: baseline; gap: 12px; }
+.hud-panel.right > div { flex-direction: row-reverse; }
+.hud-name { font-size: 14px; letter-spacing: 3px; }
+.hud-score { font-size: 30px; font-weight: 700; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.hud-rounds, .hud-cells { display: flex; gap: 4px; }
+.hud-rounds i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--c); opacity: .45; }
+.hud-rounds i.on { background: var(--c); opacity: 1; box-shadow: 0 0 6px var(--c); }
+.hud-label { width: 42px; font-size: 10px; opacity: .75; }
+.hud-panel.right .hud-label { text-align: right; }
+.hud-track { display: flex; width: 120px; height: 8px; transform: skewX(-18deg); overflow: hidden;
+  border: 1px solid var(--c); border-radius: 2px; background: rgba(5,6,10,0.6); }
+.hud-panel.right .hud-track { justify-content: flex-end; } /* drains toward the screen edge on both sides */
+.hud-track i { height: 100%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.hud-turbo.burning .hud-track i { background: #fff; box-shadow: 0 0 10px #fff; }
+.hud-turbo.burning .hud-label { color: #fff; opacity: 1; }
+.hud-turbo.cooldown .hud-track { border-color: rgba(234,246,255,0.4); }
+.hud-turbo.cooldown .hud-track i { background: rgba(234,246,255,0.45); box-shadow: none; }
+.hud-note { min-width: 26px; font-size: 11px; color: #eaf6ff; opacity: .8; }
+.hud-cells i { width: 14px; height: 8px; transform: skewX(-18deg); border: 1px solid var(--c); opacity: .4; }
+.hud-cells i.on { background: var(--c); opacity: 1; box-shadow: 0 0 6px var(--c); }
+.hud-chip { padding: 1px 5px; font-size: 10px; letter-spacing: 1px; color: #fff;
+  border: 1px solid currentColor; border-radius: 3px; }
+.hud-sub { font-size: 11px; opacity: .65; }
 
-#count { font-size: clamp(60px, 18vw, 200px); color: #fff;
+/* Countdown: the arena shows through, each number punches in, then GO. */
+#countdown { gap: 6px; background: radial-gradient(ellipse at center, rgba(5,6,10,0.2), rgba(5,6,10,0.7)); }
+.count-sub { margin: 0; font-size: clamp(14px, 2.2vw, 26px); letter-spacing: 6px; color: #eaf6ff;
+  text-shadow: 0 0 10px var(--cyan), 0 0 3px #000; }
+#count { display: inline-block; line-height: 1; font-size: clamp(60px, 18vw, 200px); color: #fff;
   text-shadow: 0 0 16px var(--cyan), 0 0 40px var(--magenta); }
+#count.punch { animation: count-punch .55s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes count-punch {
+  0% { transform: scale(2.4); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: scale(1); opacity: .92; }
+}
+.go-flash { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; font-size: clamp(60px, 18vw, 200px); font-weight: 700; letter-spacing: 12px; color: #fff;
+  text-shadow: 0 0 16px #39ff6a, 0 0 44px #39ff6a; }
+.go-flash.punch { animation: go-out .7s ease-out both; }
+@keyframes go-out {
+  0% { transform: scale(.6); opacity: 0; }
+  20% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Results: a card over the final frame, glowing in the winner's colour
+   (--win, set by main.js). */
+#gameover { --win: #eaf6ff; background: radial-gradient(ellipse at center, rgba(5,6,10,0.5), rgba(5,6,10,0.85)); }
+.result-card { display: flex; flex-direction: column; align-items: center; gap: 20px;
+  max-width: 92vw; padding: 28px 44px 32px;
+  border: 2px solid var(--win); border-radius: 14px; background: rgba(5,6,10,0.84);
+  box-shadow: 0 0 26px -6px var(--win), 0 0 60px -20px var(--win);
+  animation: card-in .35s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes card-in { from { transform: translateY(18px) scale(.94); opacity: 0; } }
+.result-card .neon-title { font-size: clamp(24px, 4.6vw, 54px);
+  text-shadow: 0 0 8px var(--win), 0 0 26px var(--win); }
+.result-card p { margin: 0; }
+.result-card .neon-btn { border-color: var(--win); text-shadow: 0 0 6px var(--win);
+  box-shadow: 0 0 12px -3px var(--win) inset, 0 0 12px -3px var(--win); }
+#go-body { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.scoreboard { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.score-cap { font-size: 12px; letter-spacing: 5px; opacity: .6; }
+.score-row { display: flex; align-items: center; gap: 22px; }
+.score-side { display: flex; align-items: baseline; gap: 12px; color: var(--c); text-shadow: 0 0 10px var(--c); }
+.score-side.flip { flex-direction: row-reverse; }
+.score-side em { font-style: normal; font-size: 15px; letter-spacing: 3px; }
+.score-side b { font-size: clamp(40px, 7vw, 72px); line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.score-dash { font-size: 32px; opacity: .5; }
+.result-big { display: flex; align-items: baseline; gap: 14px; letter-spacing: 4px; }
+.result-big b { font-size: clamp(36px, 6vw, 64px); line-height: 1; color: #fff; text-shadow: 0 0 12px var(--win); }
+@media (prefers-reduced-motion: reduce) {
+  #count.punch, .go-flash.punch, .result-card { animation: none; }
+}
 .hint { opacity: .6; letter-spacing: 2px; }
 
 /* Utility: kept last in the cascade so it wins over any earlier same-specificity display rule (e.g. .hud). */

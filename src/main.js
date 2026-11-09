@@ -6,6 +6,9 @@
 
   function fitCanvas() {
     const f = Renderer.fit(canvas, COLS, ROWS); cell = f.cell; ctx = f.ctx;
+    // the HUD lines up with the arena's top corners, not the window's
+    hud.style.width = canvas.style.width;
+    hud.style.top = `${Math.max(0, (window.innerHeight - ROWS * cell) / 2)}px`;
   }
 
   const el = (id) => document.getElementById(id);
@@ -276,67 +279,81 @@
     Renderer.drawSnake(ctx, snake, Renderer.PALETTE[a.colorIndex], cell, 'fade', a.elapsed, false, a.atlas);
   }
 
+  // The matchup shown over the countdown: who you're about to face.
+  function matchupLine() {
+    if (state.mode === '1p') return 'SURVIVE';
+    if (state.mode === 'gauntlet') {
+      return `RIVAL ${state.gauntlet.stage + 1} OF ${Gauntlet.STAGES.length} \u2014 ${RIVALS[rivalKey()].name}`;
+    }
+    return `${label(0)}  VS  ${label(1)}`;
+  }
+
+  // Restart a one-shot CSS animation on a node.
+  function punch(node) {
+    node.classList.remove('punch');
+    void node.offsetWidth;
+    node.classList.add('punch');
+  }
+
+  let goTimer = null;
+  function flashGo() {
+    const go = el('go-flash');
+    go.classList.remove('hidden');
+    punch(go);
+    clearTimeout(goTimer);
+    goTimer = setTimeout(() => go.classList.add('hidden'), 700);
+  }
+
   function startCountdown() {
     state.phase = 'countdown'; hud.classList.add('hidden'); show(countdown);
-    let n = 3; countSpan.textContent = n;
+    el('count-sub').textContent = matchupLine();
+    let n = 3; countSpan.textContent = n; punch(countSpan);
     state.countdownTimer = setInterval(() => {
       n -= 1;
       if (n <= 0) { clearInterval(state.countdownTimer); show(null); hud.classList.remove('hidden');
-        state.phase = 'playing'; state.last = performance.now(); Audio.start(state.musicTrack); }
-      else countSpan.textContent = n;
+        state.phase = 'playing'; state.last = performance.now(); Audio.start(state.musicTrack); flashGo(); }
+      else { countSpan.textContent = n; punch(countSpan); }
     }, 700);
   }
 
-  function turboTag(t, color) {
-    if (t.cooldown > 0) {
-      return ` <span style="color:${color};opacity:0.4;font-size:14px">⏳ ${Math.ceil(t.cooldown)}s</span>`;
-    }
-    if (t.held && t.fuel > 0) {
-      return ` <span style="color:#fff;font-size:14px;text-shadow:0 0 8px ${color}">⚡TURBO</span>`;
-    }
-    // Show fuel bar
-    const pct = (t.fuel / Speed.TURBO_FUEL_SEC * 100) | 0;
-    return ` <span style="color:${color};opacity:0.6;font-size:14px">⚡${pct}%</span>`;
-  }
-
-  function ammoTag(index, color) {
-    const available = Projectile.ammoAvailable(state.elapsed, state.round.firedCount[index]);
-    const pips = '●'.repeat(available) + '○'.repeat(Projectile.AMMO_CAP - available);
-    return ` <span style="color:${color};opacity:0.7;font-size:14px">${pips}</span>`;
-  }
-
-  const STATUS_TAGS = { shield: '🛡', phase: '👻' };
-  function statusTag(index, color) {
+  // One player's HUD panel (markup from hud.js). Online has no turbo or
+  // bolts, and CPU rivals never boost, so those bars are left out for them.
+  function hudPanel(index, side, name, score, sub = '') {
     const snake = state.round.snakes[index];
-    let out = '';
-    for (const [key, glyph] of Object.entries(STATUS_TAGS)) {
-      if (snake[key]) out += ` <span style="color:${color};font-size:14px">${glyph}</span>`;
-    }
+    const chips = [];
+    if (snake.shield) chips.push('SHIELD');
+    if (snake.phase) chips.push('PHASE');
     const frozenUntil = state.round.frozenUntil && state.round.frozenUntil[index];
-    if (frozenUntil && state.elapsed < frozenUntil) {
-      out += ` <span style="color:#bdeeff;font-size:14px">❄${Math.ceil(frozenUntil - state.elapsed)}s</span>`;
-    }
-    return out;
+    if (frozenUntil && state.elapsed < frozenUntil) chips.push(`FROZEN ${Math.ceil(frozenUntil - state.elapsed)}s`);
+    const extras = !isOnline();
+    return Hud.panel({
+      side, color: state.colors[index], name, score, chips, sub,
+      rounds: state.mode === '1p' ? null : Hud.rounds(state.match.scores[index], state.match.target),
+      turbo: extras && !(index === 1 && vsCpu())
+        ? Hud.turboMeter(state.turbo[index], Speed.TURBO_FUEL_SEC, Speed.TURBO_COOLDOWN_SEC) : null,
+      ammo: extras
+        ? { have: Projectile.ammoAvailable(state.elapsed, state.round.firedCount[index]), cap: Projectile.AMMO_CAP } : null,
+    });
   }
 
   function updateHud() {
-    const [c0, c1] = state.colors;
-    const [t0, t1] = state.turbo;
-    if (state.mode === '1p') hud.innerHTML = `<span style="color:${c0}">TIME ${state.elapsed.toFixed(1)}s${turboTag(t0, c0)}${ammoTag(0, c0)}${statusTag(0, c0)}</span>`;
-    else if (vsCpu()) {
-      const stageTag = state.mode === 'gauntlet'
-        ? ` <span style="opacity:.5;font-size:14px">${state.gauntlet.stage + 1}/${Gauntlet.STAGES.length}</span>` : '';
-      hud.innerHTML = `<span style="color:${c0}">YOU ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}${statusTag(0, c0)}</span>`
-        + `<span style="color:${c1}">${RIVALS[rivalKey()].name} ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}${statusTag(1, c1)}${stageTag}</span>`;
-    }
-    else if (isOnline()) {
+    if (state.mode === '1p') { hud.innerHTML = hudPanel(0, 'left', 'TIME', state.elapsed.toFixed(1)); return; }
+    const scores = state.match.scores;
+    if (isOnline()) {
       const y = state.online.youAre;
-      const lag = state.online.lagging ? ` <span style="opacity:.5;font-size:14px">CONNECTION LAGGING…</span>` : '';
-      hud.innerHTML = `<span style="color:${state.colors[y]}">YOU ${state.match.scores[y]}</span>`
-        + `<span style="color:${state.colors[1 - y]}">FRIEND ${state.match.scores[1 - y]}${lag}</span>`;
+      hud.innerHTML = hudPanel(y, 'left', 'YOU', scores[y])
+        + hudPanel(1 - y, 'right', 'FRIEND', scores[1 - y], state.online.lagging ? 'CONNECTION LAGGING\u2026' : '');
+      return;
     }
-    else hud.innerHTML = `<span style="color:${c0}">P1 ${state.match.scores[0]}${turboTag(t0, c0)}${ammoTag(0, c0)}${statusTag(0, c0)}</span>`
-      + `<span style="color:${c1}">P2 ${state.match.scores[1]}${turboTag(t1, c1)}${ammoTag(1, c1)}${statusTag(1, c1)}</span>`;
+    const names = vsCpu() ? ['YOU', RIVALS[rivalKey()].name] : ['P1', 'P2'];
+    const sub = state.mode === 'gauntlet' ? `RIVAL ${state.gauntlet.stage + 1}/${Gauntlet.STAGES.length}` : '';
+    hud.innerHTML = hudPanel(0, 'left', names[0], scores[0]) + hudPanel(1, 'right', names[1], scores[1], sub);
+  }
+
+  // Results screen: the card glows in the winner's colour (pale on a draw).
+  function resultTone(color) { gameover.style.setProperty('--win', color || '#eaf6ff'); }
+  function scoreboard(caption) {
+    return Hud.scoreboard(caption, [0, 1].map((i) => ({ name: label(i), score: state.match.scores[i], color: state.colors[i] })));
   }
 
   function label(index) {
@@ -413,22 +430,34 @@
   // press meant for the replay that just ended.
   const RESULT_ACTION_LOCK_MS = 250;
 
+  // The frame left behind the results card: the arena once the blast has
+  // cleared (wreck and its trail gone), with no replay banner on it.
+  function paintAftermath() {
+    if (!state.replay) return;
+    const view = Replay.wreckedView(state.replay.playback, Replay.IMPACT_SEC);
+    Renderer.render(ctx, view, cell, state.colors, state.borderColor, view.t, [], state.atlas, state.gfx);
+    if (state.gfx === 'high') Renderer.bloom(ctx);
+  }
+
   function showResult() {
+    paintAftermath();
     state.replay = null; state.phase = 'roundover';
     state.actionLockUntil = performance.now() + RESULT_ACTION_LOCK_MS;
     if (state.mode === '1p') return finishSolo();
     if (state.match.over) return state.mode === 'gauntlet' ? finishGauntletStage() : finishMatch();
     show(gameover);
+    resultTone(state.round.winnerIndex === null ? null : state.colors[state.round.winnerIndex]);
     goTitle.textContent = state.round.winnerIndex === null ? 'DRAW'
       : `${label(state.round.winnerIndex)} WINS ROUND`;
-    goBody.innerHTML = `<p>MATCH ${state.match.scores[0]} — ${state.match.scores[1]}</p>` + tauntLine();
+    goBody.innerHTML = scoreboard('MATCH') + tauntLine();
     el('go-continue').textContent = 'PRESS ENTER FOR NEXT ROUND';
   }
 
   function finishMatch() {
     show(gameover);
+    resultTone(state.colors[state.match.winnerIndex]);
     goTitle.textContent = `${label(state.match.winnerIndex)} WINS THE MATCH`;
-    goBody.innerHTML = `<p>FINAL ${state.match.scores[0]} — ${state.match.scores[1]}</p>` + tauntLine();
+    goBody.innerHTML = scoreboard('FINAL') + tauntLine();
     el('go-continue').textContent = 'PRESS ENTER FOR MENU';
     state.phase = 'gameover';
   }
@@ -442,6 +471,7 @@
     const total = Gauntlet.STAGES.length;
     Gauntlet.resolveMatch(g, state.match.winnerIndex);
     show(gameover);
+    resultTone(state.colors[!g.over || g.victory ? 0 : 1]);
     if (!g.over) {
       const next = RIVALS[Gauntlet.STAGES[g.stage]];
       goTitle.textContent = `${fought.name} DEREZZED`;
@@ -469,8 +499,9 @@
   function finishSolo() {
     const time = Number(state.elapsed.toFixed(1));
     let board = Leaderboard.load(window.localStorage);
-    show(gameover); goTitle.textContent = 'GAME OVER';
-    goBody.innerHTML = `<p>SURVIVED ${time.toFixed(1)}s</p>` + renderBoard(board);
+    show(gameover); resultTone(state.colors[0]); goTitle.textContent = 'GAME OVER';
+    const survived = `<p class="result-big">SURVIVED<b>${time.toFixed(1)}s</b></p>`;
+    goBody.innerHTML = survived + renderBoard(board);
     el('go-continue').textContent = 'PRESS ENTER FOR MENU';
     state.phase = 'gameover';
     if (Leaderboard.qualifies(board, time)) {
@@ -481,7 +512,7 @@
         if (state.phase !== 'gameover') return;
         const name = (prompt(`New high score: ${time}s! Enter name:`, 'YOU') || 'YOU');
         board = Leaderboard.insert(window.localStorage, board, name, time);
-        goBody.innerHTML = `<p>SURVIVED ${time.toFixed(1)}s</p>` + renderBoard(board);
+        goBody.innerHTML = survived + renderBoard(board);
       }, 1600);
     }
   }
@@ -738,6 +769,7 @@
     if (state.phase === 'menu') { setOnlineStatus(message); return; }
     Audio.stop();
     show(gameover);
+    resultTone(null);
     goTitle.textContent = message;
     goBody.innerHTML = '';
     el('go-continue').textContent = 'PRESS ENTER FOR MENU';
@@ -749,6 +781,7 @@
     if (state.online) { Online.disconnect(); state.online = null; }
     setOnlineStatus(''); // any room code shown is stale once we're back here
     state.phase = 'menu'; hud.classList.add('hidden'); Audio.stop();
+    el('go-flash').classList.add('hidden');
     el('leaderboard').innerHTML = renderBoard(Leaderboard.load(window.localStorage));
     const best = Gauntlet.loadBest(window.localStorage);
     el('gauntlet-best').textContent = best > 0

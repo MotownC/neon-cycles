@@ -118,16 +118,22 @@
     </section>
 
     <!-- Countdown overlay -->
-    <section id="countdown" class="overlay hidden"><span id="count">3</span></section>
+    <section id="countdown" class="overlay hidden">
+      <p id="count-sub" class="count-sub"></p>
+      <span id="count">3</span>
+    </section>
+    <div id="go-flash" class="go-flash hidden">GO</div>
 
     <!-- HUD (during play) -->
     <div id="hud" class="hud hidden"></div>
 
     <!-- Round/Game over overlay -->
     <section id="gameover" class="overlay hidden">
-      <h2 id="go-title" class="neon-title"></h2>
-      <div id="go-body"></div>
-      <button id="go-continue" class="neon-btn">PRESS ENTER</button>
+      <div class="result-card">
+        <h2 id="go-title" class="neon-title"></h2>
+        <div id="go-body"></div>
+        <button id="go-continue" class="neon-btn">PRESS ENTER</button>
+      </div>
     </section>
 
     <!-- Title screen: first thing shown on load -->
@@ -162,6 +168,7 @@
   <script src="src/net.js?v=0.20.16"></script>
   <script src="src/online.js?v=0.20.16"></script>
   <script src="src/controls-art.js?v=0.20.16"></script>
+  <script src="src/hud.js?v=0.20.16"></script>
   <script src="src/menu-nav.js?v=0.20.16"></script>
   <script src="src/glide.js?v=0.20.16"></script>
   <script src="src/particles.js?v=0.20.16"></script>
