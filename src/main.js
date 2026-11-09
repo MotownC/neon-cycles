@@ -391,6 +391,13 @@
     }
   }
 
+  // Human steering only: the tick is the sound of a turn the snake accepted.
+  function steer(snake, dir) {
+    const queued = snake.queue.length;
+    Snake.bufferDirection(snake, dir);
+    if (snake.queue.length !== queued) Audio.turnSfx();
+  }
+
   function isBoosting(playerIndex) {
     if (!state.turboEnabled) return false;
     const t = state.turbo[playerIndex];
@@ -421,6 +428,7 @@
     const dtSec = dt / 1000;
     if (!isOnline()) state.elapsed += dtSec; // online: elapsed advances per confirmed tick below
     updateTurbo(dtSec);
+    Audio.setTurbo(isBoosting(0) || isBoosting(1));
     Audio.setIntensity(Math.min(1, state.elapsed / 45));
 
     let frozen = [];
@@ -466,7 +474,7 @@
         }
         Online.send(Net.localTurns(o.session, o.pending.splice(0), hash));
         const { turns } = Net.takeTick(o.session);
-        turns.forEach((dirs, i) => dirs.forEach((d) => Snake.bufferDirection(state.round.snakes[i], d)));
+        turns.forEach((dirs, i) => dirs.forEach((d) => steer(state.round.snakes[i], d)));
         Round.tick(state.round, state.elapsed);
         state.elapsed += interval / 1000; // simulated time: identical on both machines
         interval = Speed.tickInterval(state.elapsed, skillLevel());
@@ -617,7 +625,7 @@
       }
       const snake = state.round.snakes[i];
       const before = snake.queue.join('<');
-      Snake.bufferDirection(snake, dir);
+      steer(snake, dir);
       tr({ t: performance.now() | 0, key: dir, player: i,
         heading: snake.direction, queue: `${before}->${snake.queue.join('<')}` });
     },

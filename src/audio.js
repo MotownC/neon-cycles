@@ -18,6 +18,12 @@
   let customEl = null, customUrl = null;
   const CUSTOM_VOLUME = 0.5;
 
+  let engine = null, turboOn = false;
+  const ENGINE_BASE = 55;
+  const ENGINE_RATIOS = [1, 1.008, 2];
+  const WHINE_RATIO = 6;
+  const ENGINE_LEVEL = 0.5;
+
   let distortionCurve = null;
   function distortionShaper() {
     if (!distortionCurve) {
@@ -160,6 +166,82 @@
     drone = { oscs, filter: f, gain: g };
   }
 
+  // SFX ONLY track: a cycle engine hum instead of music. Runs one round at a
+  // time — crash() cuts it, and every round's start() brings it back.
+  function engineFreq() {
+    return ENGINE_BASE * (1 + intensity * 0.6) * (turboOn ? 1.4 : 1);
+  }
+
+  function startEngine() {
+    if (engine) return;
+    const t = ctx.currentTime, base = engineFreq();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(ENGINE_LEVEL, t + 0.25);
+    gain.connect(master);
+    const body = ctx.createBiquadFilter(); body.type = 'lowpass'; body.frequency.value = 520; body.Q.value = 3;
+    body.connect(gain);
+    const oscs = ENGINE_RATIOS.map((ratio) => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = base * ratio;
+      o.connect(body); o.start(t); return o;
+    });
+    // fast filter wobble gives the hum an electric throb
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 14;
+    const lfoDepth = ctx.createGain(); lfoDepth.gain.value = 180;
+    lfo.connect(lfoDepth); lfoDepth.connect(body.frequency); lfo.start(t);
+    // gritty whine, silent until turbo opens it up
+    const whine = ctx.createOscillator(); whine.type = 'sawtooth'; whine.frequency.value = base * WHINE_RATIO;
+    const ws = distortionShaper();
+    const band = ctx.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = 2200; band.Q.value = 3;
+    const whineGain = ctx.createGain(); whineGain.gain.value = 0.0001;
+    whine.connect(ws); ws.connect(band); band.connect(whineGain); whineGain.connect(gain);
+    whine.start(t);
+    engine = { oscs, lfo, whine, whineGain, gain, freq: base };
+  }
+
+  function stopEngine() {
+    turboOn = false;
+    if (!engine) return;
+    const t = ctx.currentTime;
+    engine.gain.gain.setTargetAtTime(0.0001, t, 0.05);
+    engine.oscs.concat(engine.lfo, engine.whine).forEach((o) => o.stop(t + 0.4));
+    engine = null;
+  }
+
+  // Called every frame via setIntensity, so skip tiny changes rather than
+  // piling a new automation event onto each oscillator 60 times a second.
+  function retuneEngine() {
+    if (!engine) return;
+    const f = engineFreq();
+    if (Math.abs(f - engine.freq) < 0.5) return;
+    engine.freq = f;
+    const t = ctx.currentTime;
+    engine.oscs.forEach((o, i) => o.frequency.setTargetAtTime(f * ENGINE_RATIOS[i], t, 0.08));
+    engine.whine.frequency.setTargetAtTime(f * WHINE_RATIO, t, 0.08);
+  }
+
+  function setTurbo(on) {
+    if (!engine || on === turboOn) return;
+    turboOn = on;
+    retuneEngine();
+    const t = ctx.currentTime;
+    engine.whineGain.gain.setTargetAtTime(on ? 0.8 : 0.0001, t, on ? 0.04 : 0.06);
+    if (on) { // ignition whoosh
+      const f = noise(t, 0.3, 0.7, 'bandpass', 400);
+      f.frequency.setValueAtTime(400, t);
+      f.frequency.exponentialRampToValueAtTime(4500, t + 0.25);
+    }
+  }
+
+  function turnSfx() {
+    if (!engine) return; // SFX ONLY track, during a round
+    const t = ctx.currentTime;
+    const f = noise(t, 0.06, 0.4, 'bandpass', 3200);
+    f.frequency.setValueAtTime(3200, t);
+    f.frequency.exponentialRampToValueAtTime(1300, t + 0.06);
+    tone(t, 340, 0.05, 'triangle', 0.25);
+  }
+
   function loadCustomTrack(file) {
     if (customUrl) URL.revokeObjectURL(customUrl);
     customUrl = URL.createObjectURL(file);
@@ -229,6 +311,7 @@
       playCustomTrack();
       return;
     }
+    if (currentTrack === 'sfx') { startEngine(); return; }
     if (running) return; running = true;
     step = 0;
     nextTime = ctx.currentTime + 0.05;
@@ -243,16 +326,19 @@
       drone.oscs.forEach((o) => o.stop(t + 0.6));
       drone = null;
     }
+    stopEngine();
     if (customEl) customEl.pause();
   }
 
   function setIntensity(v) {
     intensity = Math.max(0, Math.min(1, v));
     if (drone) drone.filter.frequency.value = 160 + intensity * 360;
+    retuneEngine();
   }
 
   function crash() {
     ensure(); const t = ctx.currentTime;
+    stopEngine();
     // duck the music so the blast lands, then swell back in
     if (currentTrack === 'custom' && customEl) {
       // Mute rather than pause: pausing would force the *next* round's
@@ -286,9 +372,26 @@
     }
   }
 
+  function sweep(t, from, to, dur, type, peak, dest, shaper) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(from, t);
+    o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    env(g, t, peak, dur);
+    if (shaper) { o.connect(shaper); shaper.connect(g); } else { o.connect(g); }
+    g.connect(dest);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
   function fireSfx() {
     ensure(); const t = ctx.currentTime;
-    tone(t, 1400, 0.08, 'square', 0.3, 4000);
+    // its own bus, like crash(), so the shot punches through the music
+    const bus = ctx.createGain(); bus.gain.value = 0.34; bus.connect(ctx.destination);
+    sweep(t, 1800, 90, 0.26, 'sawtooth', 0.5, bus, distortionShaper()); // distorted zap
+    sweep(t, 170, 38, 0.2, 'sine', 1, bus); // sub thump
+    const f = noise(t, 0.3, 0.6, 'bandpass', 5000, bus); // discharge
+    f.frequency.setValueAtTime(5000, t);
+    f.frequency.exponentialRampToValueAtTime(400, t + 0.3);
   }
 
   function derezSfx() {
@@ -308,5 +411,5 @@
     tone(t + 0.05, 1100, 0.12, 'triangle', 0.28, 3500);
   }
 
-  return { __name: 'Audio', start, stop, setIntensity, crash, fireSfx, derezSfx, bounceSfx, pickupSfx, loadCustomTrack, primeCustomTrack };
+  return { __name: 'Audio', start, stop, setIntensity, crash, setTurbo, turnSfx, fireSfx, derezSfx, bounceSfx, pickupSfx, loadCustomTrack, primeCustomTrack };
 });
