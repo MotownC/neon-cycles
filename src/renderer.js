@@ -84,7 +84,7 @@
   }
 
   // Each live cycle lights the floor around it in its own colour.
-  const POOL_RADIUS_CELLS = 4.5;
+  const POOL_RADIUS_CELLS = 4.5, BEAM_LENGTH_CELLS = 6, BEAM_WIDTH_CELLS = 3.6;
   function drawLightPools(ctx, snakes, colors, cell, atlas) {
     const r = POOL_RADIUS_CELLS * cell;
     ctx.save();
@@ -92,8 +92,15 @@
     snakes.forEach((s, i) => {
       const img = atlas.pools && atlas.pools[colors[i]];
       if (!img || s.wrecked || s.alive === false) return;
-      const p = cyclePos(s);
-      ctx.drawImage(img, (p.x + 0.5) * cell - r, (p.y + 0.5) * cell - r, r * 2, r * 2);
+      const p = cyclePos(s), px = (p.x + 0.5) * cell, py = (p.y + 0.5) * cell;
+      ctx.drawImage(img, px - r, py - r, r * 2, r * 2);
+      const beam = atlas.beams && atlas.beams[colors[i]];
+      if (!beam) return;
+      ctx.save(); // headlight cone, thrown ahead along the nose
+      ctx.translate(px, py);
+      ctx.rotate(cycleAngle(s));
+      ctx.drawImage(beam, cell * 0.7, -cell * BEAM_WIDTH_CELLS / 2, cell * BEAM_LENGTH_CELLS, cell * BEAM_WIDTH_CELLS);
+      ctx.restore();
     });
     ctx.restore();
   }
@@ -163,13 +170,27 @@
   function cyclePos(snake) { return snake.cycleAt || snake.body[snake.body.length - 1]; }
 
   // Baked light cycle at the head cell, nose pointing along travel direction.
-  function drawCycle(ctx, snake, color, cell, atlas) {
+  // Animated: rotor spokes spin (faster on turbo), the bike squashes as it
+  // leans through a turn, and a boosting bike gets a flickering thruster glow.
+  const WHEEL_FPS = 16, TURBO_WHEEL_FPS = 28, LEAN_SQUASH = 0.24;
+  function drawCycle(ctx, snake, color, cell, atlas, elapsedSec = 0) {
     const pos = cyclePos(snake);
-    const img = atlas.cycles[color];
+    const frames = atlas.cycleFrames && atlas.cycleFrames[color];
+    const fps = snake.boosting ? TURBO_WHEEL_FPS : WHEEL_FPS;
+    const img = frames ? frames[Math.floor(Math.max(0, elapsedSec) * fps) % frames.length] : atlas.cycles[color];
     const span = atlas.spans.cycle;
     ctx.save();
     ctx.translate((pos.x + 0.5) * cell, (pos.y + 0.5) * cell);
     ctx.rotate(cycleAngle(snake));
+    if (snake.leanT < 1) ctx.scale(1, 1 - LEAN_SQUASH * Math.sin(Math.PI * snake.leanT));
+    const glow = snake.boosting && atlas.pools && atlas.pools[color];
+    if (glow) {
+      const r = cell * (0.8 + 0.2 * Math.sin(elapsedSec * 45));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.drawImage(glow, -cell * 0.95 - r, -r * 0.7, r * 2, r * 1.4);
+      ctx.drawImage(glow, -cell * 0.95 - r * 0.5, -r * 0.35, r, r * 0.7);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ctx.drawImage(img, -span * cell / 2, -span * cell / 2, span * cell, span * cell);
     ctx.restore();
   }
@@ -254,7 +275,7 @@
     }
     ctx.restore();
     if (snake.wrecked) return;
-    drawCycle(ctx, snake, color, cell, atlas);
+    drawCycle(ctx, snake, color, cell, atlas, elapsedSec);
     if (snake.shield) drawShieldRing(ctx, snake, cell, elapsedSec);
     if (frozen) drawFrostOverlay(ctx, snake, cell);
   }

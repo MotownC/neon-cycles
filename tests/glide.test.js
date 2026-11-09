@@ -46,6 +46,7 @@ test('after a turn the nose swings round during the first part of the glide', ()
   const v = Glide.view(s, g, 100);
   assert.strictEqual(v.turnFrom, 'right');
   assert.ok(Math.abs(v.turnT - 0.5) < 1e-9);
+  assert.ok(Math.abs(v.leanT - Glide.TURN_PORTION / 2) < 1e-9, 'the lean runs over the whole glide');
   g.ms = 90;
   assert.strictEqual(Glide.view(s, g, 100).turnT, 1);
 });

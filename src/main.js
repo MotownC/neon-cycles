@@ -67,6 +67,7 @@
     attract: null, // decorative menu-screen loop; see initAttract()
     menuSelected: null, // menu element highlighted for keyboard/controller selection
     particles: Particles.createSystem(), // cosmetic sparks and flame; see particles.js
+    shapes: ['classic', 'classic'], // bike silhouette per snake; see Sprites.SHAPES
     gfx: savedGfx(), // 'high' adds bloom and per-frame lighting; 'low' is for slow machines
   };
 
@@ -133,6 +134,8 @@
       state.colors = [Renderer.pickOpponentColor(state.playerColor), state.playerColor];
     }
     state.borderColor = Renderer.randomBorderColor();
+    // Each CPU rival rides its own bike; humans ride the classic.
+    state.shapes = ['classic', vsCpu() ? rivalKey() : 'classic'];
     state.elapsed = 0; state.acc = 0; state.boltAcc = 0; state.last = performance.now();
     state.flashes = [];
     state.recorder = Replay.createRecorder();
@@ -142,7 +145,7 @@
     glides = [null, null]; scrapes = [[], []];
     state.particles = Particles.createSystem();
     fitCanvas();
-    state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS });
+    state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS, shapes: state.shapes });
     paint(); // the new arena shows behind the countdown
   }
 
@@ -205,7 +208,8 @@
   function glidingRound(dt, normalInt, turboInt) {
     const snakes = state.round.snakes.map((s, i) => {
       Glide.advance(glides[i], isOnline() ? state.acc : state.turbo[i].acc, dt);
-      return Glide.view(s, glides[i], isBoosting(i) ? turboInt : normalInt);
+      const drawn = Glide.view(s, glides[i], isBoosting(i) ? turboInt : normalInt);
+      return isBoosting(i) && s.alive ? { ...drawn, boosting: true } : drawn;
     });
     return { ...state.round, snakes };
   }
@@ -238,7 +242,9 @@
     state.attract = {
       board, corners, targetIndex: 1, colorIndex: 0, elapsed: 0, acc: 0,
       snake: { body: [head], direction: 'right' },
-      atlas: Sprites.bake({ cell, colors: Renderer.PALETTE, borderColor: '#000' }),
+      // the menu cycle changes colour each lap, and shows off a different bike with it
+      atlas: Sprites.bake({ cell, colors: Renderer.PALETTE, borderColor: '#000',
+        shapes: Renderer.PALETTE.map((_, i) => Sprites.SHAPE_NAMES[i % Sprites.SHAPE_NAMES.length]) }),
     };
   }
 
@@ -1011,7 +1017,7 @@
       initAttract();
     } else if (state.round) {
       fitCanvas();
-      state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS });
+      state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS, shapes: state.shapes });
     }
   });
 

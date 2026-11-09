@@ -31,7 +31,8 @@
   }
 
   // The snake as it should be drawn: the same object once the glide is done,
-  // otherwise a copy carrying cycleAt (fractional cell) and turn-in progress.
+  // otherwise a copy carrying cycleAt (fractional cell) and, after a turn,
+  // how far the nose swing (turnT) and the lean (leanT) have got.
   function view(snake, glide, intervalMs) {
     if (!glide) return snake;
     const a = Math.max(0, glide.ms / intervalMs);
@@ -41,6 +42,7 @@
     if (glide.fromDir !== snake.direction) {
       out.turnFrom = glide.fromDir;
       out.turnT = Math.min(1, a / TURN_PORTION);
+      out.leanT = a; // the lean lasts the whole glide, longer than the nose swing
     }
     return out;
   }
