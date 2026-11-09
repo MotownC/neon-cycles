@@ -93,7 +93,7 @@ html, body {
 .leaderboard .row { display: flex; justify-content: space-between; padding: 2px 8px; opacity: .9; }
 .leaderboard h3 { letter-spacing: 3px; margin: 0 0 8px; color: var(--cyan); text-shadow: 0 0 8px var(--cyan); }
 
-#controls-panel { width: min(1180px, 94vw); }
+#controls-panel { width: min(1180px, 94vw); scroll-margin: 16px; }
 .controls-art { display: flex; gap: 28px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
 .controls-figure { flex: 1 1 400px; max-width: 570px; min-width: 0; margin: 0; }
 .controls-figure h4 { margin: 0 0 10px; letter-spacing: 2px; font-size: 14px;
