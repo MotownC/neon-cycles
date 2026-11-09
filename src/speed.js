@@ -7,7 +7,7 @@
   const FLOOR_MS = 55;   // fastest allowed
   const RAMP_PER_SEC = 1.1; // ms removed per elapsed second
 
-  const TURBO_MULTIPLIER = 0.81; // tick interval multiplied by this during turbo
+  const TURBO_MULTIPLIER = 0.75; // tick interval multiplied by this during turbo
   const TURBO_FUEL_SEC = 3;      // max seconds of turbo per charge
   const TURBO_COOLDOWN_SEC = 15; // cooldown after fuel is exhausted
 
