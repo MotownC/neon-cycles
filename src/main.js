@@ -682,6 +682,25 @@
     else if (document.activeElement.tagName === 'INPUT') document.activeElement.blur();
   }
 
+  // Settings, Leaderboard and Controls: at most one is open at a time.
+  const menuPanels = {
+    'settings-toggle': [...document.querySelectorAll('.settings-group')],
+    'leaderboard-toggle': [el('leaderboard')],
+    'controls-toggle': [el('controls-panel')],
+  };
+
+  function closeMenuPanels() {
+    Object.values(menuPanels).flat().forEach((p) => p.classList.add('hidden'));
+  }
+
+  // Esc / controller Menu on the menu screen: back out of the open panel.
+  function closeOpenMenuPanel() {
+    const open = Object.keys(menuPanels).find((id) => !menuPanels[id][0].classList.contains('hidden'));
+    if (!open) return;
+    closeMenuPanels();
+    if (!menuItems().includes(state.menuSelected)) selectMenuItem(el(open));
+  }
+
   function activateMenuItem() {
     if (menuItems().includes(state.menuSelected)) state.menuSelected.click();
     else selectMenuItem(menuItems()[0]);
@@ -715,7 +734,7 @@
         heading: snake.direction, queue: `${before}->${snake.queue.join('<')}` });
     },
     onAction,
-    onQuit: () => { if (state.phase !== 'menu') showMenu(); },
+    onQuit: () => { if (state.phase !== 'menu') showMenu(); else closeOpenMenuPanel(); },
     onTurbo: (i, pressed) => {
       if (isOnline()) return;
       if (state.phase !== 'playing') return;
@@ -815,15 +834,15 @@
     colorButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
-  const settingsGroups = document.querySelectorAll('.settings-group');
-  el('settings-toggle').addEventListener('click', () =>
-    settingsGroups.forEach((g) => g.classList.toggle('hidden')));
-  const togglePanel = (panel) => {
-    panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden')) panel.scrollIntoView({ block: 'nearest' });
-  };
-  el('leaderboard-toggle').addEventListener('click', () => togglePanel(el('leaderboard')));
-  el('controls-toggle').addEventListener('click', () => togglePanel(el('controls-panel')));
+  Object.entries(menuPanels).forEach(([toggleId, parts]) => {
+    el(toggleId).addEventListener('click', () => {
+      const wasOpen = !parts[0].classList.contains('hidden');
+      closeMenuPanels();
+      if (wasOpen) return;
+      parts.forEach((p) => p.classList.remove('hidden'));
+      parts[parts.length - 1].scrollIntoView({ block: 'nearest' });
+    });
+  });
   el('controls-keyboard').innerHTML = ControlsArt.keyboardSvg();
   el('controls-gamepad').innerHTML = ControlsArt.controllerSvg();
 
