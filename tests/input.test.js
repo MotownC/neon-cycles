@@ -31,6 +31,15 @@ test('ignores held-key autorepeat events', () => {
   assert.strictEqual(actions, 0);
 });
 
+test('forwards Escape to onQuit, ignoring autorepeat', () => {
+  let quits = 0;
+  Input.attach({ onDirection: () => {}, onAction: () => {}, onQuit: () => quits++ });
+  press('Escape', true);
+  assert.strictEqual(quits, 0);
+  press('Escape');
+  assert.strictEqual(quits, 1);
+});
+
 test('forwards fire keys to onFire for each player', () => {
   const fires = [];
   Input.attach({ onDirection: () => {}, onAction: () => {}, onFire: (i) => fires.push(i) });

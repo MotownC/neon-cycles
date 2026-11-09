@@ -46,6 +46,7 @@
     recorder: null, // recent sim frames, read back by the crash replay
     replay: null, // { playback, sec } while the 'replay' phase is running
     actionLockUntil: 0, // performance.now() before which Enter is ignored on a result screen
+    countdownTimer: null, // so quitting mid-countdown can stop it starting the round
     trailMode: 'tron',
     musicTrack: 'original',
     playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
@@ -191,9 +192,9 @@
   function startCountdown() {
     state.phase = 'countdown'; hud.classList.add('hidden'); show(countdown);
     let n = 3; countSpan.textContent = n;
-    const iv = setInterval(() => {
+    state.countdownTimer = setInterval(() => {
       n -= 1;
-      if (n <= 0) { clearInterval(iv); show(null); hud.classList.remove('hidden');
+      if (n <= 0) { clearInterval(state.countdownTimer); show(null); hud.classList.remove('hidden');
         state.phase = 'playing'; state.last = performance.now(); Audio.start(state.musicTrack); }
       else countSpan.textContent = n;
     }, 700);
@@ -638,6 +639,7 @@
   }
 
   function showMenu() {
+    clearInterval(state.countdownTimer);
     if (state.online) { Online.disconnect(); state.online = null; }
     setOnlineStatus(''); // any room code shown is stale once we're back here
     state.phase = 'menu'; hud.classList.add('hidden'); Audio.stop();
@@ -678,6 +680,7 @@
         heading: snake.direction, queue: `${before}->${snake.queue.join('<')}` });
     },
     onAction,
+    onQuit: () => { if (state.phase !== 'menu') showMenu(); },
     onTurbo: (i, pressed) => {
       if (isOnline()) return;
       if (state.phase !== 'playing' || !state.turboEnabled) return;

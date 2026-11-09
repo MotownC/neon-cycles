@@ -13,6 +13,7 @@
       if (P1[e.code]) { handlers.onDirection(0, P1[e.code]); e.preventDefault(); }
       else if (P2[e.code]) { handlers.onDirection(1, P2[e.code]); e.preventDefault(); }
       else if (e.code === 'Enter' || e.code === 'Space') { handlers.onAction(); e.preventDefault(); }
+      else if (e.code === 'Escape' && handlers.onQuit) { handlers.onQuit(); e.preventDefault(); }
       else if (e.code === 'ShiftRight' && handlers.onTurbo) { handlers.onTurbo(0, true); e.preventDefault(); }
       else if (e.code === 'ShiftLeft' && handlers.onTurbo) { handlers.onTurbo(1, true); e.preventDefault(); }
       else if (e.code === 'Slash' && handlers.onFire) { handlers.onFire(0); e.preventDefault(); }
