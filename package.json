@@ -1,6 +1,6 @@
 {
   "name": "neon-light-cycles",
-  "version": "0.20.14",
+  "version": "0.20.15",
   "private": true,
   "description": "Neon light-cycle game (browser, no build).",
   "scripts": {
