@@ -818,12 +818,12 @@
   const settingsGroups = document.querySelectorAll('.settings-group');
   el('settings-toggle').addEventListener('click', () =>
     settingsGroups.forEach((g) => g.classList.toggle('hidden')));
-  el('leaderboard-toggle').addEventListener('click', () => el('leaderboard').classList.toggle('hidden'));
-  el('controls-toggle').addEventListener('click', () => {
-    const panel = el('controls-panel');
+  const togglePanel = (panel) => {
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) panel.scrollIntoView({ block: 'nearest' });
-  });
+  };
+  el('leaderboard-toggle').addEventListener('click', () => togglePanel(el('leaderboard')));
+  el('controls-toggle').addEventListener('click', () => togglePanel(el('controls-panel')));
   el('controls-keyboard').innerHTML = ControlsArt.keyboardSvg();
   el('controls-gamepad').innerHTML = ControlsArt.controllerSvg();
 
