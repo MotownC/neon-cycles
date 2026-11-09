@@ -89,7 +89,7 @@
       }
       st.fire = firePressed;
 
-      const quitPressed = !!(gp.buttons[2] && gp.buttons[2].pressed); // X on an Xbox-style pad
+      const quitPressed = !!(gp.buttons[9] && gp.buttons[9].pressed); // Menu on an Xbox-style pad, away from A (fire)
       if (quitPressed && !st.quit && handlers.onQuit) handlers.onQuit();
       st.quit = quitPressed;
     });

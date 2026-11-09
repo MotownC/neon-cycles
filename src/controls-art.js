@@ -80,17 +80,18 @@
     const controls = part('on', stick(232, 176))
       + part('on', `<path d="${DPAD}"/>`)
       + part('', stick(428, 232))
-      + part('', rrect(319, 154, 22, 12, 6) + rrect(379, 154, 22, 12, 6) + circle(360, 128, 13))
+      + part('', rrect(317, 152, 26, 16, 8) + circle(360, 128, 13))
+      + part('on', rrect(377, 152, 26, 16, 8))
       + faceButton('pad-a', 488, 212, 'A')
       + faceButton('', 524, 176, 'B')
-      + faceButton('pad-x', 452, 176, 'X')
+      + faceButton('', 452, 176, 'X')
       + faceButton('', 488, 140, 'Y');
     const callouts = callout(198, 176, 104, 205) + callout(262, 232, 104, 205) + padLabel(96, 205, 'end', 'STEER')
       + callout(524, 60, 622, 76) + callout(544, 94, 622, 76) + padLabel(630, 76, 'start', 'HOLD: TURBO')
       + callout(505, 212, 622, 212) + padLabel(630, 212, 'start', 'FIRE / CONTINUE')
-      + callout(446, 160, 385, 46) + padLabel(370, 32, 'middle', 'QUIT TO MENU');
+      + callout(390, 150, 372, 46) + padLabel(370, 32, 'middle', 'MENU: QUIT');
     const desc = 'Xbox-style controller. D-pad or left stick steers, hold RB or RT for turbo, '
-      + 'A fires and continues, X quits to menu.';
+      + 'A fires and continues, the Menu button quits to menu.';
     return `<svg viewBox="-70 12 880 386" role="img" aria-label="${desc}">`
       + `${shoulders}<path class="pad-body" d="${PAD_BODY}"/>${controls}${callouts}</svg>`;
   }

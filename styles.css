@@ -112,7 +112,6 @@ html, body {
 .art-key.p2 { --lit: var(--magenta); }
 .art-key.shared { --lit: #fff23b; }
 .art-key.pad-a { --lit: #39ff6a; }
-.art-key.pad-x { --lit: #4aa3ff; }
 .pad-body { fill: #0b0f18; stroke: rgba(234,246,255,0.45); stroke-width: 2; }
 .pad-line { stroke: rgba(234,246,255,0.5); stroke-width: 1.5; }
 .pad-label { fill: #eaf6ff; font-size: 18px; letter-spacing: 1px; }
