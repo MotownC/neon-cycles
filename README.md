@@ -9,7 +9,7 @@ Open `index.html` in a modern browser (no build step, no server needed).
 
 - **1 Player — Survival:** last as long as you can; times go on a local
   leaderboard.
-- **2 Player — First to 10:** win rounds until someone reaches 10.
+- **2 Player — First to 5:** win rounds until someone reaches 5 (adjustable in the menu).
 
 ## Controls
 

@@ -1,5 +1,5 @@
 (function () {
-  const COLS = 64, ROWS = 40, MATCH_TARGET = 10;
+  const COLS = 64, ROWS = 40, MATCH_TARGET = 5;
   const canvas = document.getElementById('game');
   const stage = document.getElementById('stage');
   let cell, ctx;
@@ -39,21 +39,21 @@
 
   const state = {
     phase: 'menu', mode: '1p', round: null, match: null,
-    elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'none',
+    elapsed: 0, acc: 0, boltAcc: 0, last: 0, raf: null, wallDensity: 'low',
     matchTarget: MATCH_TARGET,
-    skillLevel: Speed.DEFAULT_SKILL,
+    skillLevel: 2, // menu default; Speed.DEFAULT_SKILL stays the baseline speed
     flashes: [], // transient visual markers for bolt cut/kill/bounce outcomes
     recorder: null, // recent sim frames, read back by the crash replay
     replay: null, // { playback, sec } while the 'replay' phase is running
     actionLockUntil: 0, // performance.now() before which Enter is ignored on a result screen
     countdownTimer: null, // so quitting mid-countdown can stop it starting the round
     trailMode: 'tron',
-    musicTrack: 'original',
-    playerColor: Renderer.PALETTE[0], colors: Renderer.COLORS,
+    musicTrack: 'sfx',
+    playerColor: '#ff9d2b', colors: Renderer.COLORS,
     borderColor: '#ff2b4a',
     atlas: null, // baked sprite atlas, rebaked on round start and resize
     turbo: [freshTurbo(), freshTurbo()],
-    rival: 'aggressor',
+    rival: 'random',
     activeRival: null, // resolved rival key for the current round, when rival === 'random'
     gauntlet: null, // active Gauntlet run, only in gauntlet mode
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
@@ -761,9 +761,9 @@
   });
 
   const colorToggle = el('color-toggle');
-  Renderer.PALETTE.forEach((color, i) => {
+  Renderer.PALETTE.forEach((color) => {
     const btn = document.createElement('button');
-    btn.className = 'color-swatch' + (i === 0 ? ' active' : '');
+    btn.className = 'color-swatch' + (color === state.playerColor ? ' active' : '');
     btn.style.setProperty('--swatch', color);
     btn.dataset.color = color;
     btn.setAttribute('aria-label', color);

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Neon Cycles** — a browser-based Tron-style light-cycle game. Snakes leave glowing trails. Crashing into the arena boundary, an interior wall, any trail, or head-on with the opponent ends the round. Vanilla JS, HTML5 canvas, Web Audio — **no build step, no framework; the browser game has no dependencies** (the online server has one, `ws`, server-only).
 
-Modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, local 2P (first to 10 rounds), Gauntlet (CPU rival ladder), and Online (remote 2P via room codes). Menu options: wall density (none/low/med/high), rival, trail mode, player color.
+Modes: 1P Survival (timed, localStorage leaderboard), 1P vs CPU, local 2P (first to 5 rounds by default), Gauntlet (CPU rival ladder), and Online (remote 2P via room codes). Menu options: wall density (none/low/med/high), rival, trail mode, player color.
 
 ## Commands
 
