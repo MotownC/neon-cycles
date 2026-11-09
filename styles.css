@@ -72,6 +72,9 @@ html, body {
   box-shadow: 0 0 10px rgba(0,240,255,0.35) inset, 0 0 10px rgba(0,240,255,0.35);
 }
 
+.menu-selected { outline: 2px solid #fff; outline-offset: 3px; }
+.neon-btn.menu-selected { transform: scale(1.04); background: rgba(234,246,255,0.12); }
+
 .color-toggle { display: flex; align-items: center; gap: 10px; }
 .color-toggle .hint { opacity: .5; font-size: 13px; }
 .color-swatch {

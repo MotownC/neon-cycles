@@ -58,6 +58,7 @@
     gauntlet: null, // active Gauntlet run, only in gauntlet mode
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
     attract: null, // decorative menu-screen loop; see initAttract()
+    menuSelected: null, // menu element highlighted for keyboard/controller selection
   };
 
   // Both CPU-driven modes share the same input/AI plumbing; they differ only
@@ -587,6 +588,7 @@
   function onAction() {
     if (state.phase === 'replay') return showResult(); // this press is spent on the skip
     if (performance.now() < state.actionLockUntil) return;
+    if (state.phase === 'menu') return activateMenuItem();
     if (isOnline()) {
       if (state.phase === 'gameover') { showMenu(); }
       else if (state.phase === 'roundover' && !state.online.localReady) {
@@ -610,6 +612,7 @@
   }
 
   function beginOnlineGame(start) {
+    el('online-code-input').blur(); // keys must steer, not count as typing
     state.mode = 'online';
     state.gauntlet = null;
     state.online = { seed: start.seed >>> 0, settings: start.settings, youAre: start.youAre,
@@ -648,13 +651,46 @@
       ? (best >= Gauntlet.STAGES.length ? '★ GRID CHAMPION ★'
         : `GAUNTLET BEST: ${best} OF ${Gauntlet.STAGES.length} RIVALS`) : '';
     show(menu);
+    if (!menuItems().includes(state.menuSelected)) selectMenuItem(menuItems()[0]);
     state.last = performance.now();
     initAttract();
+  }
+
+  // --- keyboard/controller menu navigation ---
+  function menuItems() {
+    return [...menu.querySelectorAll('button, input:not([type="file"])')].filter((b) => b.offsetParent !== null);
+  }
+
+  function selectMenuItem(item) {
+    if (state.menuSelected) state.menuSelected.classList.remove('menu-selected');
+    state.menuSelected = item;
+    item.classList.add('menu-selected');
+  }
+
+  function moveMenuSelection(dir) {
+    const items = menuItems();
+    if (!items.includes(state.menuSelected)) return selectMenuItem(items[0]); // its panel was closed
+    const centers = items.map((b) => {
+      const r = b.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const next = items[MenuNav.move(centers, items.indexOf(state.menuSelected), dir)];
+    selectMenuItem(next);
+    next.scrollIntoView({ block: 'nearest' });
+    // Landing on the room-code box makes it ready to type in.
+    if (next.tagName === 'INPUT') next.focus();
+    else if (document.activeElement.tagName === 'INPUT') document.activeElement.blur();
+  }
+
+  function activateMenuItem() {
+    if (menuItems().includes(state.menuSelected)) state.menuSelected.click();
+    else selectMenuItem(menuItems()[0]);
   }
 
   // wire input + menu buttons
   const inputHandlers = {
     onDirection: (i, dir) => {
+      if (state.phase === 'menu') return moveMenuSelection(dir);
       if (isOnline()) {
         // Both key sets steer the local snake online; turns are queued for
         // the lockstep pipeline instead of touching the snake directly.
@@ -710,6 +746,10 @@
       beginGame(btn.dataset.mode);
     }));
   el('go-continue').addEventListener('click', onAction);
+  menu.addEventListener('mouseover', (e) => {
+    const item = e.target.closest('button, input:not([type="file"])');
+    if (item) selectMenuItem(item); // one highlight, whichever input moved it last
+  });
 
   const wallButtons = document.querySelectorAll('[data-wall]');
   wallButtons.forEach((btn) => btn.addEventListener('click', () => {

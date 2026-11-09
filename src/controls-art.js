@@ -52,7 +52,7 @@
       });
     });
     const desc = 'Keyboard. Player 1: arrow keys steer, Right Shift turbo, slash fires. '
-      + 'Player 2: W A S D steer, Left Shift turbo, Q fires. Esc quits to menu, Enter or Space continues.';
+      + 'Player 2: W A S D steer, Left Shift turbo, Q fires. Esc quits to menu, Enter or Space selects.';
     return `<svg viewBox="-3 -3 746 270" role="img" aria-label="${desc}">${out}</svg>`;
   }
 
@@ -88,10 +88,10 @@
       + faceButton('', 488, 140, 'Y');
     const callouts = callout(198, 176, 104, 205) + callout(262, 232, 104, 205) + padLabel(96, 205, 'end', 'STEER')
       + callout(524, 60, 622, 76) + callout(544, 94, 622, 76) + padLabel(630, 76, 'start', 'HOLD: TURBO')
-      + callout(505, 212, 622, 212) + padLabel(630, 212, 'start', 'FIRE / CONTINUE')
+      + callout(505, 212, 622, 212) + padLabel(630, 212, 'start', 'FIRE / SELECT')
       + callout(390, 150, 372, 46) + padLabel(370, 32, 'middle', 'MENU: QUIT');
     const desc = 'Xbox-style controller. D-pad or left stick steers, hold RB or RT for turbo, '
-      + 'A fires and continues, the Menu button quits to menu.';
+      + 'A fires and selects, the Menu button quits to menu.';
     return `<svg viewBox="-70 12 880 386" role="img" aria-label="${desc}">`
       + `${shoulders}<path class="pad-body" d="${PAD_BODY}"/>${controls}${callouts}</svg>`;
   }

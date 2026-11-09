@@ -40,6 +40,17 @@ test('forwards Escape to onQuit, ignoring autorepeat', () => {
   assert.strictEqual(quits, 1);
 });
 
+test('letters typed in a text box are left alone, but arrows still navigate', () => {
+  const dirs = []; let prevented = 0;
+  Input.attach({ onDirection: (i, d) => dirs.push([i, d]), onAction: () => {} });
+  const typeKey = (code) => keyHandler({ code, repeat: false, target: { tagName: 'INPUT' }, preventDefault() { prevented++; } });
+  typeKey('KeyW');
+  assert.deepStrictEqual(dirs, []);
+  assert.strictEqual(prevented, 0);
+  typeKey('ArrowDown');
+  assert.deepStrictEqual(dirs, [[0, 'down']]);
+});
+
 test('controller Menu quits once per press, even when held', () => {
   const pad = { index: 0, axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false })) };
   Object.defineProperty(global, 'navigator', { value: { getGamepads: () => [pad] }, configurable: true });

@@ -10,6 +10,8 @@
   function attach(handlers) {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return; // held keys autorepeat; only real presses steer
+      // Letters typed into the room-code box are text, not controls.
+      if (e.target && e.target.tagName === 'INPUT' && !P1[e.code] && e.code !== 'Enter' && e.code !== 'Escape') return;
       if (P1[e.code]) { handlers.onDirection(0, P1[e.code]); e.preventDefault(); }
       else if (P2[e.code]) { handlers.onDirection(1, P2[e.code]); e.preventDefault(); }
       else if (e.code === 'Enter' || e.code === 'Space') { handlers.onAction(); e.preventDefault(); }
