@@ -60,6 +60,48 @@ test('controller X quits once per press, even when held', () => {
   Input.pollGamepads(handlers);
 });
 
+// Drives pollGamepads through a sequence of pad states and returns the turns
+// it reported. Ends on a neutral poll so module-level pad state can't leak.
+function turnsFrom(states) {
+  const pad = { index: 0, axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false })) };
+  Object.defineProperty(global, 'navigator', { value: { getGamepads: () => [pad] }, configurable: true });
+  const turns = [];
+  const handlers = { onDirection: (i, d) => turns.push(d), onAction: () => {} };
+  for (const { stick = [0, 0], dpad = [] } of [...states, {}]) {
+    pad.axes = stick;
+    pad.buttons.forEach((b, code) => { b.pressed = dpad.includes(code); });
+    Input.pollGamepads(handlers);
+  }
+  return turns;
+}
+const UP = 12, RIGHT = 15;
+
+test('a stick wobbling around a diagonal does not alternate turns', () => {
+  const wobble = [[0.72, -0.7], [0.7, -0.72], [0.73, -0.69], [0.69, -0.73], [0.72, -0.71]];
+  const turns = turnsFrom([{ stick: [1, 0] }, ...wobble.map((stick) => ({ stick }))]);
+  assert.deepStrictEqual(turns, ['right']);
+});
+
+test('rolling the stick from one direction to another still turns', () => {
+  const turns = turnsFrom([{ stick: [0, -1] }, { stick: [0.5, -0.8] }, { stick: [0.8, -0.5] }, { stick: [1, 0] }]);
+  assert.deepStrictEqual(turns, ['up', 'right']);
+});
+
+test('a stick hovering at the deadzone edge does not re-trigger', () => {
+  const turns = turnsFrom([{ stick: [0.55, 0] }, { stick: [0.45, 0] }, { stick: [0.55, 0] }, { stick: [0.45, 0] }, { stick: [0.55, 0] }]);
+  assert.deepStrictEqual(turns, ['right']);
+});
+
+test('brushing a second d-pad button while holding one does not turn', () => {
+  const turns = turnsFrom([{ dpad: [RIGHT] }, { dpad: [RIGHT, UP] }, { dpad: [RIGHT] }]);
+  assert.deepStrictEqual(turns, ['right']);
+});
+
+test('rolling across the d-pad turns once the old button lifts', () => {
+  const turns = turnsFrom([{ dpad: [RIGHT] }, { dpad: [RIGHT, UP] }, { dpad: [UP] }]);
+  assert.deepStrictEqual(turns, ['right', 'up']);
+});
+
 test('forwards fire keys to onFire for each player', () => {
   const fires = [];
   Input.attach({ onDirection: () => {}, onAction: () => {}, onFire: (i) => fires.push(i) });

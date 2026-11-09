@@ -31,22 +31,31 @@
   // handlers.onDirection/onFire every single frame.
   const DPAD = { 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
   const STICK_DEADZONE = 0.5;
+  const STICK_RELEASE = 0.35; // below the deadzone, so a stick hovering at the edge can't re-trigger
+  const STICK_DOMINANCE = 1.5; // how far one axis must outweigh the other to change direction
   const padState = [
     { dir: null, turbo: false, fire: false, quit: false },
     { dir: null, turbo: false, fire: false, quit: false },
   ];
 
-  function stickDirection(gp) {
+  // Both readers below take the direction already held: every change they
+  // report becomes a turn, so an ambiguous reading (a stick near a diagonal, a
+  // second d-pad button brushed by the thumb) must keep it, not pick a side.
+  function stickDirection(gp, held) {
     const x = gp.axes[0] || 0, y = gp.axes[1] || 0;
-    if (Math.abs(x) < STICK_DEADZONE && Math.abs(y) < STICK_DEADZONE) return null;
-    return Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'down' : 'up');
+    const big = Math.max(Math.abs(x), Math.abs(y)), small = Math.min(Math.abs(x), Math.abs(y));
+    if (big < (held ? STICK_RELEASE : STICK_DEADZONE)) return null;
+    const dir = Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'down' : 'up');
+    if (!held || dir === held) return dir;
+    return big >= STICK_DEADZONE && big >= small * STICK_DOMINANCE ? dir : held;
   }
 
-  function padDirection(gp) {
-    for (const code in DPAD) {
-      if (gp.buttons[code] && gp.buttons[code].pressed) return DPAD[code];
-    }
-    return stickDirection(gp);
+  function padDirection(gp, held) {
+    const pressed = Object.keys(DPAD)
+      .filter((code) => gp.buttons[code] && gp.buttons[code].pressed)
+      .map((code) => DPAD[code]);
+    if (pressed.length) return pressed.includes(held) ? held : pressed[0];
+    return stickDirection(gp, held);
   }
 
   // Same connected-pad-to-player-slot mapping used by pollGamepads and
@@ -64,7 +73,7 @@
     connectedPads().forEach((gp, slot) => {
       const st = padState[slot];
 
-      const dir = padDirection(gp);
+      const dir = padDirection(gp, st.dir);
       if (dir && dir !== st.dir) handlers.onDirection(slot, dir);
       st.dir = dir;
 
