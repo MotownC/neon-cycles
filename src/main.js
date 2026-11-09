@@ -66,6 +66,7 @@
     online: null, // { seed, settings, youAre, session, pending, roundNumber, localReady, remoteReady, stallSince, lagging }
     attract: null, // decorative menu-screen loop; see initAttract()
     menuSelected: null, // menu element highlighted for keyboard/controller selection
+    particles: Particles.createSystem(), // cosmetic sparks and flame; see particles.js
     gfx: savedGfx(), // 'high' adds bloom and per-frame lighting; 'low' is for slow machines
   };
 
@@ -138,7 +139,8 @@
     state.replay = null;
     recordFrame();
     state.turbo = [freshTurbo(), freshTurbo()];
-    glides = [null, null];
+    glides = [null, null]; scrapes = [[], []];
+    state.particles = Particles.createSystem();
     fitCanvas();
     state.atlas = Sprites.bake({ cell, colors: state.colors, borderColor: state.borderColor, cols: COLS, rows: ROWS });
     paint(); // the new arena shows behind the countdown
@@ -147,6 +149,7 @@
   // One finished frame: the scene, then bloom over it on HIGH graphics.
   function paint(view = state.round, t = state.elapsed, flashes = state.flashes) {
     Renderer.render(ctx, view, cell, state.colors, state.borderColor, t, flashes, state.atlas, state.gfx);
+    Renderer.drawParticles(ctx, state.particles.items, cell);
     if (state.gfx === 'high') Renderer.bloom(ctx);
   }
 
@@ -159,7 +162,43 @@
     const indices = only === undefined ? snakes.map((_, i) => i) : [only];
     const before = indices.map((i) => Glide.snapshot(snakes[i]));
     run();
-    indices.forEach((i, k) => { glides[i] = Glide.note(before[k], snakes[i]); });
+    indices.forEach((i, k) => {
+      glides[i] = Glide.note(before[k], snakes[i]);
+      scrapes[i] = glides[i] ? closeSides(snakes[i]) : [];
+      if (glides[i] && before[k].direction !== snakes[i].direction) {
+        Particles.turnSparks(state.particles, before[k], before[k].direction, state.colors[i], Math.random);
+      }
+    });
+  }
+
+  // Per snake: which of its two sides are right up against a wall or trail.
+  let scrapes = [[], []];
+  function closeSides(snake) {
+    const h = snake.body[snake.body.length - 1], v = Geometry.vector(snake.direction);
+    return [{ x: -v.y, y: v.x }, { x: v.y, y: -v.x }]
+      .filter((side) => Board.wouldCollide(state.round.board, { x: h.x + side.x, y: h.y + side.y }));
+  }
+
+  // Sparks and flame that follow the cycles as drawn. Cosmetic only, so
+  // Math.random is fine even online.
+  const EXHAUST_PER_SEC = 110, SCRAPE_PER_SEC = 45;
+  function emitCycleFx(view, dtSec, frozen) {
+    view.snakes.forEach((s, i) => {
+      if (!s.alive || frozen.includes(i)) return;
+      const pos = s.cycleAt || s.body[s.body.length - 1];
+      if (isBoosting(i)) {
+        Particles.exhaust(state.particles, pos, s.direction, state.colors[i],
+          Particles.howMany(EXHAUST_PER_SEC, dtSec, Math.random), Math.random);
+      }
+      scrapes[i].forEach((side) => Particles.scrape(state.particles, pos, s.direction, side,
+        Particles.howMany(SCRAPE_PER_SEC, dtSec, Math.random), Math.random));
+    });
+  }
+
+  function fireFx(i) {
+    Audio.fireSfx();
+    const s = state.round.snakes[i];
+    Particles.muzzle(state.particles, s.body[s.body.length - 1], s.direction, state.colors[i], Math.random);
   }
 
   // The round as drawn this frame: cycles part-way between cells.
@@ -346,14 +385,20 @@
 
   function advanceReplay(now) {
     const r = state.replay;
-    r.sec += Math.min(now - state.last, 250) / 1000; state.last = now;
+    const dtSec = Math.min(now - state.last, 250) / 1000; state.last = now;
+    r.sec += dtSec;
     const at = Replay.stageAt(r.playback, r.sec);
     if (at.stage === 'done') return showResult();
     const replaying = at.stage === 'replay';
-    const view = replaying ? Replay.viewAt(r.playback, at.simT) : Replay.wreckedView(r.playback);
+    const view = replaying ? Replay.viewAt(r.playback, at.simT) : Replay.wreckedView(r.playback, at.age);
     Renderer.render(ctx, view, cell, state.colors, state.borderColor, replaying ? at.simT : view.t,
       replaying ? view.flashes : [], state.atlas, state.gfx);
     if (!replaying) Renderer.drawDebris(ctx, r.playback.debris, at.age, state.colors, cell, state.atlas);
+    // sparks still in the air when the crash hit finish their flight, then the replay runs clean
+    if (at.stage === 'explode') {
+      Particles.step(state.particles, dtSec);
+      Renderer.drawParticles(ctx, state.particles.items, cell);
+    } else state.particles.items = [];
     if (state.gfx === 'high') Renderer.bloom(ctx); // before the banner, so the text stays crisp
     if (at.stage !== 'explode') Renderer.drawReplayBanner(ctx, COLS, ROWS, cell);
   }
@@ -487,6 +532,7 @@
   function claimPickups() {
     Powerups.claim(state.round, state.elapsed).forEach((c) => {
       state.flashes.push({ pos: c.pos, type: 'pickup', start: state.elapsed });
+      Particles.ring(state.particles, c.pos, Sprites.PICKUP_COLORS[c.type] || '#ffffff', 24, Math.random);
       Audio.pickupSfx();
     });
   }
@@ -505,6 +551,7 @@
     const dtSec = dt / 1000;
     if (!isOnline()) state.elapsed += dtSec; // online: elapsed advances per confirmed tick below
     updateTurbo(dtSec);
+    Particles.step(state.particles, dtSec);
     Audio.setTurbo(isBoosting(0) || isBoosting(1));
     Audio.setIntensity(Math.min(1, state.elapsed / 45));
 
@@ -517,6 +564,7 @@
         const outcomes = Projectile.advanceBolts(state.round, state.elapsed);
         outcomes.forEach((o) => {
           state.flashes.push({ pos: o.pos, type: o.type, start: state.elapsed });
+          Particles.ring(state.particles, o.pos, Renderer.FLASH_COLORS[o.type], o.type === 'bounce' ? 8 : 20, Math.random);
           o.type === 'bounce' ? Audio.bounceSfx() : Audio.derezSfx();
         });
         if (state.round.bolts.length) recordFrame();
@@ -578,7 +626,7 @@
           if (CPU.shouldFire(state.round, 1, state.elapsed, brain)) {
             const before = state.round.firedCount[1];
             Projectile.fire(state.round, 1, state.elapsed);
-            if (state.round.firedCount[1] !== before) Audio.fireSfx();
+            if (state.round.firedCount[1] !== before) fireFx(1);
           }
         }
         tickGliding(() => Round.tick(state.round, state.elapsed, frozen));
@@ -605,7 +653,7 @@
             if (CPU.shouldFire(state.round, 1, state.elapsed, brain)) {
               const before = state.round.firedCount[1];
               Projectile.fire(state.round, 1, state.elapsed);
-              if (state.round.firedCount[1] !== before) Audio.fireSfx();
+              if (state.round.firedCount[1] !== before) fireFx(1);
             }
           }
           tickGliding(() => Round.tickSingle(state.round, i, state.elapsed), i);
@@ -618,7 +666,9 @@
     }
 
     updateHud();
-    paint(glidingRound(dt, normalInt, turboInt));
+    const view = glidingRound(dt, normalInt, turboInt);
+    emitCycleFx(view, dtSec, frozen);
+    paint(view);
   }
 
   function beginGame(mode) {
@@ -798,7 +848,7 @@
       const before = state.round.firedCount[i];
       Projectile.fire(state.round, i, state.elapsed);
       if (state.round.firedCount[i] !== before) {
-        Audio.fireSfx();
+        fireFx(i);
         Input.rumble(i, { duration: 160, strong: 0.15, weak: 0.5 });
       }
     },

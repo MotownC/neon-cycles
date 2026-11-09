@@ -228,3 +228,40 @@ test('pieces fly apart and then expire', () => {
     assert.ok(p.life <= Replay.EXPLODE_SEC, 'debris has to finish inside the explosion stage');
   }
 });
+
+const trailOf = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 5 }));
+
+test('a dead trail dissolves from the crash point back, and is gone inside the explosion stage', () => {
+  const round = duelRound();
+  round.snakes[1].alive = false;
+  round.snakes[1].body = trailOf(40);
+  const rec = Replay.createRecorder();
+  Replay.record(rec, round, 0);
+  const pb = Replay.createPlayback(rec, seeded());
+  const alive = Replay.wreckedView(pb, 0.2).snakes[0];
+  assert.strictEqual(alive.body.length, round.snakes[0].body.length, "the survivor's trail is untouched");
+  const early = Replay.wreckedView(pb, 0.1).snakes[1].body;
+  assert.ok(early.length > 0 && early.length < 40);
+  assert.deepStrictEqual(early[0], { x: 0, y: 5 }, 'the tail end is the last to go');
+  assert.strictEqual(Replay.wreckedView(pb, Replay.EXPLODE_SEC).snakes[1].body.length, 0);
+  assert.strictEqual(Replay.wreckedView(pb).snakes[1].body.length, 40, 'no age: the trail is left whole');
+});
+
+test('each trail cell sheds one shard, released as the dissolve reaches it', () => {
+  const body = trailOf(40);
+  const shards = Replay.shatter(body, seeded());
+  assert.strictEqual(shards.length, 40);
+  const head = shards[39], tail = shards[0];
+  assert.strictEqual(head.delay, 0);
+  assert.ok(tail.delay > head.delay);
+  assert.strictEqual(Replay.pieceAt(tail, tail.delay - 0.01), null, 'not loose yet');
+  assert.ok(Replay.pieceAt(tail, tail.delay + 0.01));
+  for (const s of shards) {
+    assert.ok(s.delay + s.life <= Replay.EXPLODE_SEC, 'shards have to finish inside the explosion stage');
+  }
+});
+
+test('a very long trail still dissolves in time', () => {
+  const shards = Replay.shatter(trailOf(1500), seeded());
+  assert.ok(Math.max(...shards.map((s) => s.delay)) <= Replay.DEREZ_SEC + 1e-9);
+});

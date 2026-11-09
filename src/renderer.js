@@ -286,12 +286,94 @@
     ctx.restore();
   }
 
+  // Stepped particles from particles.js. Additive, so overlaps burn white;
+  // no per-particle shadow (bloom supplies the glow).
+  const SPARK_STREAK_SEC = 0.035;
+  function drawParticles(ctx, items, cell) {
+    if (!items || !items.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (const p of items) {
+      const t = p.age / p.life;
+      const px = (p.x + 0.5) * cell, py = (p.y + 0.5) * cell;
+      ctx.globalAlpha = 1 - t * t;
+      if (p.kind === 'flame') {
+        ctx.fillStyle = t < 0.25 ? '#ffffff' : p.color; // white-hot at the nozzle
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(0.5, p.size * cell * (1 - t * 0.6)), 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // a streak along its own motion; a stopped spark is just a dot
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(1, p.size * cell);
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px - p.vx * SPARK_STREAK_SEC * cell, py - p.vy * SPARK_STREAK_SEC * cell);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // The crash itself: a white flash, then two shockwave rings racing outward.
+  const BLAST_FLASH_SEC = 0.22;
+  const BLAST_RINGS = [
+    { delay: 0, sec: 0.55, reach: 11, width: 3, white: true },
+    { delay: 0.06, sec: 0.7, reach: 7.5, width: 2 },
+  ];
+  function drawBlast(ctx, center, color, ageSec, cell) {
+    const cx = (center.x + 0.5) * cell, cy = (center.y + 0.5) * cell;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (ageSec < BLAST_FLASH_SEC) {
+      const p = ageSec / BLAST_FLASH_SEC, r = cell * (2.5 + 4 * p);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, '#ffffff'); g.addColorStop(0.4, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 1 - p;
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const ring of BLAST_RINGS) {
+      const p = (ageSec - ring.delay) / ring.sec;
+      if (p < 0 || p >= 1) continue;
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.strokeStyle = ring.white ? '#ffffff' : color;
+      ctx.lineWidth = ring.width * (1 - p) + 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * ring.reach * (1 - Math.pow(1 - p, 3)), 0, Math.PI * 2); // fast out, easing
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // The dead cycle's trail breaking up into tumbling, shrinking squares.
+  function drawShards(ctx, shards, ageSec, color, cell) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = color;
+    for (const shard of shards) {
+      const at = R.pieceAt(shard, ageSec);
+      if (!at) continue;
+      const d = shard.size * cell * (0.4 + 0.6 * at.alpha);
+      ctx.globalAlpha = at.alpha;
+      ctx.save();
+      ctx.translate((at.x + 0.5) * cell, (at.y + 0.5) * cell);
+      ctx.rotate(at.rot);
+      ctx.fillRect(-d / 2, -d / 2, d, d);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   // A crashed cycle's pieces: tiles cut from its own sprite over a glowing
   // backing in the snake's color (the sprite has dark panels that would
   // vanish against the grid), plus thin sparks.
   function drawDebris(ctx, debris, ageSec, colors, cell, atlas) {
-    for (const { snakeIndex, pieces } of debris) {
+    for (const { snakeIndex, center, pieces, shards } of debris) {
       const color = colors[snakeIndex];
+      if (shards) drawShards(ctx, shards, ageSec, color, cell);
+      if (center) drawBlast(ctx, center, color, ageSec, cell);
       const img = atlas.cycles[color];
       const perCell = img.width / atlas.spans.cycle;
       for (const piece of pieces) {
@@ -366,8 +448,8 @@
   }
 
   return {
-    __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC,
+    __name: 'Renderer', COLORS, PALETTE, FLASH_DURATION_SEC, FLASH_COLORS,
     pickOpponentColor, randomBorderColor, fadeAlpha, fit,
-    bloom, clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, drawDebris, drawReplayBanner, render,
+    bloom, drawParticles, clearBackground, drawGrid, drawWalls, drawBolts, drawFlashes, drawPickups, drawSnake, drawDebris, drawReplayBanner, render,
   };
 });

@@ -382,5 +382,5 @@
     return atlas;
   }
 
-  return { __name: 'Sprites', trailKey, bake, TRAIL_KEYS, BOLT_FRAMES };
+  return { __name: 'Sprites', trailKey, bake, TRAIL_KEYS, BOLT_FRAMES, PICKUP_COLORS };
 });

@@ -17,6 +17,8 @@
   const IMPACT_RATE = 0.6;   // ...also in slow motion
   const RAM_DEPTH = 0.45;    // how far (in cells) a dead cycle noses into what it hit
   const MAX_STEP_SEC = 0.125; // longest a single cell move can take (Speed.BASE_MS, plus slack)
+  const DEREZ_SEC = 0.35;    // a dead cycle's trail dissolves, crash point first, over this long
+  const DEREZ_MIN_RATE = 60; // cells per second, so a short trail doesn't vanish in a blink
 
   function createRecorder() { return { frames: [] }; }
 
@@ -72,7 +74,10 @@
     const startT = Math.max(frames[0].t, last.t - WINDOW_SEC);
     const debris = [];
     last.snakes.forEach((s, snakeIndex) => {
-      if (!s.alive) debris.push({ snakeIndex, pieces: explode(cyclePos(s), s.direction, rand) });
+      if (!s.alive) {
+        const center = cyclePos(s);
+        debris.push({ snakeIndex, center, pieces: explode(center, s.direction, rand), shards: shatter(s.body, rand) });
+      }
     });
     return { frames, startT, replaySec: (last.t - startT) / SLOWMO, debris };
   }
@@ -119,10 +124,16 @@
   }
 
   // The final frame, with the crashed cycles gone: debris is drawn instead.
-  function wreckedView(playback) {
+  // Given the blast's age, a dead cycle's trail has also dissolved that far
+  // back from the crash point (its shards are drawn in its place).
+  function wreckedView(playback, age) {
     const frame = playback.frames[playback.frames.length - 1];
-    return { ...frame, snakes: frame.snakes.map((s) => (
-      s.alive ? s : { ...s, wrecked: true })) };
+    return { ...frame, snakes: frame.snakes.map((s) => {
+      if (s.alive) return s;
+      if (age === undefined) return { ...s, wrecked: true };
+      const gone = Math.floor(age * derezRate(s.body.length));
+      return { ...s, wrecked: true, body: s.body.slice(0, Math.max(0, s.body.length - gone)) };
+    }) };
   }
 
   // --- debris ---------------------------------------------------------------
@@ -131,7 +142,7 @@
   // units on the sprite (nose along +x), so the first frame still reads as
   // the whole cycle.
   const FRAG_COLS = 5, FRAG_ROWS = 2, FRAG_SIZE = 0.36;
-  const SPARK_COUNT = 18;
+  const SPARK_COUNT = 30;
 
   function explode(center, direction, rand) {
     const v = G.vector(direction);
@@ -169,9 +180,29 @@
     return pieces;
   }
 
+  function derezRate(cells) { return Math.max(DEREZ_MIN_RATE, cells / DEREZ_SEC); }
+
+  // One shard per trail cell (the head is last in `body`), each set loose as
+  // the dissolve reaches it.
+  function shatter(body, rand) {
+    const n = body.length, rate = derezRate(n);
+    return body.map((c, i) => {
+      const heading = rand() * Math.PI * 2, speed = 1.5 + rand() * 4;
+      return {
+        kind: 'shard', size: 0.3 + rand() * 0.25,
+        x0: c.x, y0: c.y,
+        vx: Math.cos(heading) * speed, vy: Math.sin(heading) * speed,
+        rot0: rand() * Math.PI, spin: (rand() - 0.5) * 14,
+        life: 0.25 + rand() * 0.2,
+        delay: (n - 1 - i) / rate,
+      };
+    });
+  }
+
   // Closed form rather than stepped, so the same debris can replay at any speed.
-  function pieceAt(piece, age) {
-    if (age > piece.life) return null;
+  function pieceAt(piece, sinceBlast) {
+    const age = sinceBlast - (piece.delay || 0);
+    if (age < 0 || age > piece.life) return null;
     const travel = (1 - Math.exp(-DRAG * age)) / DRAG;
     const p = age / piece.life;
     return {
@@ -184,7 +215,7 @@
 
   return {
     __name: 'Replay',
-    WINDOW_SEC, SLOWMO, EXPLODE_SEC, IMPACT_SEC,
-    createRecorder, record, createPlayback, stageAt, viewAt, wreckedView, explode, pieceAt,
+    WINDOW_SEC, SLOWMO, EXPLODE_SEC, IMPACT_SEC, DEREZ_SEC,
+    createRecorder, record, createPlayback, stageAt, viewAt, wreckedView, explode, shatter, pieceAt,
   };
 });
