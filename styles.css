@@ -55,9 +55,9 @@ html, body {
 }
 
 /* Road and cycles only: scaled so the art's logo and PRESS START fall off the top. */
-#menu-art { position: absolute; inset: 0; pointer-events: none; opacity: .8;
+#menu-art { position: absolute; inset: 0; pointer-events: none; opacity: .95;
   background: url(assets/title.jpg) center bottom / auto 180% no-repeat; }
-#menu { background: radial-gradient(ellipse at center, rgba(5,6,10,0.5), rgba(5,6,10,0.8)); }
+#menu { background: radial-gradient(ellipse at center, rgba(5,6,10,0.2), rgba(5,6,10,0.6)); }
 /* Small text needs a dark halo to survive the bright parts of the art. */
 #menu .hint, .controls-legend { text-shadow: 0 1px 3px #000, 0 0 3px #000, 0 0 6px #000; }
 #menu .settings-group .hint { opacity: .9; }
@@ -99,9 +99,9 @@ html, body {
 /* ---- Main menu: tab bar over one fixed-height card ----------------------- */
 #menu { gap: 18px; }
 #menu .neon-title { font-size: clamp(28px, 6vw, 72px); }
-.menu-shell { width: min(1100px, 94vw); display: flex; flex-direction: column; }
+.menu-shell { width: min(920px, 94vw); display: flex; flex-direction: column; }
 .menu-tabs { display: flex; gap: 4px; padding: 6px;
-  background: rgba(5,6,10,0.82); border: 1px solid rgba(120,170,255,0.24); border-bottom: 0;
+  background: rgba(5,6,10,0.55); border: 1px solid rgba(120,170,255,0.3); border-bottom: 0;
   border-radius: 12px 12px 0 0; }
 .menu-tab { flex: 1; position: relative; min-width: 0; padding: 13px 6px; cursor: pointer;
   background: transparent; border: 0; border-radius: 8px;
@@ -112,7 +112,8 @@ html, body {
 .menu-tab.active::after { content: ''; position: absolute; left: 20%; right: 20%; bottom: 3px; height: 2px;
   border-radius: 2px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
 .menu-card { height: clamp(280px, calc(100vh - 300px), 470px); overflow-y: auto; padding: 22px 26px;
-  background: rgba(5,6,10,0.84); border: 1px solid rgba(120,170,255,0.24); border-radius: 0 0 12px 12px;
+  background: rgba(5,6,10,0.42); border: 1px solid rgba(120,170,255,0.3); border-radius: 0 0 12px 12px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 2px #000; /* readable over the art showing through */
   box-shadow: 0 30px 60px -24px rgba(0,0,0,0.9), 0 0 46px -22px var(--cyan);
   scrollbar-width: thin; scrollbar-color: rgba(120,170,255,0.4) transparent; }
 .menu-panel.punch { animation: panel-in .22s ease-out both; }
@@ -128,7 +129,7 @@ html, body {
 .mode-tile { --c: var(--cyan); grid-column: span 2; position: relative; overflow: hidden; cursor: pointer;
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 150px;
   padding: 18px 20px 18px 24px; text-align: left; font: inherit; color: #eaf6ff;
-  background: linear-gradient(155deg, rgba(255,255,255,0.07), rgba(5,6,10,0.4) 60%);
+  background: linear-gradient(155deg, rgba(255,255,255,0.08), rgba(5,6,10,0.55) 60%);
   border: 1px solid rgba(234,246,255,0.16); border-radius: 10px;
   transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease; }
 .mode-tile.two { --c: var(--magenta); grid-column: span 3; }
