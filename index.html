@@ -14,106 +14,130 @@
     <!-- Menu overlay -->
     <section id="menu" class="overlay">
       <h1 class="neon-title">CYBER&nbsp;CYCLES</h1>
-      <div class="menu-buttons">
-        <button data-mode="1p" class="neon-btn cyan">1 PLAYER — SURVIVAL</button>
-        <button data-mode="cpu" class="neon-btn cyan">1 PLAYER — VS CPU</button>
-        <button data-mode="gauntlet" class="neon-btn cyan">GAUNTLET — FACE THE FIVE</button>
-        <button data-mode="2p" class="neon-btn magenta">2 PLAYER — LOCAL</button>
-        <button id="online-toggle" class="neon-btn magenta">2 PLAYER — ONLINE</button>
-      </div>
-      <div id="online-panel" class="hidden">
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:center;margin:8px 0">
-          <button id="online-host" class="neon-btn cyan">HOST — GET A ROOM CODE</button>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="online-code-input" maxlength="4" placeholder="CODE" autocapitalize="characters"
-              autocomplete="off" spellcheck="false"
-              style="width:7ch;background:#0a0a14;border:1px solid #2de2e6;color:#2de2e6;font:inherit;text-align:center;text-transform:uppercase;padding:6px" />
-            <button id="online-join" class="neon-btn magenta">JOIN</button>
+      <div class="menu-shell">
+        <nav class="menu-tabs" role="tablist" aria-label="Main menu">
+          <button class="menu-tab active" role="tab" aria-selected="true" aria-controls="panel-mode" data-tab="mode">MODE</button>
+          <button class="menu-tab" role="tab" aria-selected="false" aria-controls="panel-settings" data-tab="settings">SETTINGS</button>
+          <button class="menu-tab" role="tab" aria-selected="false" aria-controls="panel-leaderboard" data-tab="leaderboard">LEADERBOARD</button>
+          <button class="menu-tab" role="tab" aria-selected="false" aria-controls="panel-controls" data-tab="controls">CONTROLS</button>
+        </nav>
+        <div class="menu-card">
+          <div id="panel-mode" class="menu-panel" role="tabpanel">
+            <div class="mode-grid">
+              <button data-mode="1p" class="mode-tile">
+                <span class="mode-kicker">1 PLAYER</span><span class="mode-name">SURVIVAL</span>
+                <span class="mode-desc">Outlast the closing arena</span>
+              </button>
+              <button data-mode="cpu" class="mode-tile">
+                <span class="mode-kicker">1 PLAYER</span><span class="mode-name">VS CPU</span>
+                <span class="mode-desc">Duel a rival on the grid</span>
+              </button>
+              <button data-mode="gauntlet" class="mode-tile">
+                <span class="mode-kicker">1 PLAYER</span><span class="mode-name">GAUNTLET</span>
+                <span class="mode-desc">Beat all five rivals in a row</span>
+                <span class="mode-badge" id="gauntlet-best"></span>
+              </button>
+              <button data-mode="2p" class="mode-tile two">
+                <span class="mode-kicker">2 PLAYERS</span><span class="mode-name">LOCAL</span>
+                <span class="mode-desc">One keyboard or two controllers</span>
+              </button>
+              <button id="online-toggle" class="mode-tile two">
+                <span class="mode-kicker">2 PLAYERS</span><span class="mode-name">ONLINE</span>
+                <span class="mode-desc">Play a friend by room code</span>
+              </button>
+            </div>
+            <div id="online-panel" class="online-panel hidden">
+              <button id="online-host" class="neon-btn cyan">HOST — GET A ROOM CODE</button>
+              <div class="online-join">
+                <input id="online-code-input" maxlength="4" placeholder="CODE" autocapitalize="characters"
+                  autocomplete="off" spellcheck="false" aria-label="Room code" />
+                <button id="online-join" class="neon-btn magenta">JOIN</button>
+              </div>
+              <p class="hint" id="online-status"></p>
+            </div>
           </div>
-          <p class="hint" id="online-status"></p>
+          <div id="panel-settings" class="menu-panel settings-list hidden" role="tabpanel">
+            <div class="skill-toggle settings-group" role="group" aria-label="Skill level">
+              <span class="hint">SKILL</span>
+              <button data-skill="1" class="wall-btn">1</button>
+              <button data-skill="2" class="wall-btn active">2</button>
+              <button data-skill="3" class="wall-btn">3</button>
+              <button data-skill="4" class="wall-btn">4</button>
+              <button data-skill="5" class="wall-btn">5</button>
+            </div>
+            <div class="wall-toggle settings-group" role="group" aria-label="Wall density">
+              <span class="hint">WALLS</span>
+              <button data-wall="none" class="wall-btn">NONE</button>
+              <button data-wall="low" class="wall-btn active">LOW</button>
+              <button data-wall="med" class="wall-btn">MED</button>
+              <button data-wall="high" class="wall-btn">HIGH</button>
+            </div>
+            <div class="target-toggle settings-group" role="group" aria-label="Match target">
+              <span class="hint">FIRST TO</span>
+              <button data-target="3" class="wall-btn">3</button>
+              <button data-target="5" class="wall-btn active">5</button>
+              <button data-target="10" class="wall-btn">10</button>
+              <button data-target="15" class="wall-btn">15</button>
+            </div>
+            <div class="rival-toggle settings-group" role="group" aria-label="CPU rival">
+              <span class="hint">RIVAL</span>
+              <button data-rival="drifter" class="wall-btn">DRIFTER</button>
+              <button data-rival="survivor" class="wall-btn">SURVIVOR</button>
+              <button data-rival="aggressor" class="wall-btn">AGGRESSOR</button>
+              <button data-rival="ambusher" class="wall-btn">AMBUSHER</button>
+              <button data-rival="grandmaster" class="wall-btn">GRANDMASTER</button>
+              <button data-rival="random" class="wall-btn active">RANDOM</button>
+            </div>
+            <div class="trail-toggle settings-group" role="group" aria-label="Trail mode">
+              <span class="hint">TRAIL</span>
+              <button data-trail="tron" class="wall-btn active">TRON</button>
+              <button data-trail="fade" class="wall-btn">FADE</button>
+              <button data-trail="classic" class="wall-btn">CLASSIC</button>
+            </div>
+            <div class="music-toggle settings-group" role="group" aria-label="Music track">
+              <span class="hint">MUSIC</span>
+              <button data-music="original" class="wall-btn">ORIGINAL</button>
+              <button data-music="darkwave" class="wall-btn">DARKWAVE</button>
+              <button data-music="sfx" class="wall-btn active">SFX ONLY</button>
+              <button data-music="custom" id="music-custom-btn" class="wall-btn">CUSTOM…</button>
+              <input type="file" id="music-file-input" accept="audio/*" class="hidden" />
+            </div>
+            <div class="color-toggle settings-group" id="color-toggle" role="group" aria-label="Cycle color">
+              <span class="hint">COLOR</span>
+            </div>
+            <div class="gfx-toggle settings-group" role="group" aria-label="Graphics quality">
+              <span class="hint">GRAPHICS</span>
+              <button data-gfx="high" class="wall-btn active">HIGH</button>
+              <button data-gfx="low" class="wall-btn">LOW</button>
+            </div>
+          </div>
+          <div id="panel-leaderboard" class="menu-panel hidden" role="tabpanel">
+            <div id="leaderboard" class="leaderboard"></div>
+          </div>
+          <div id="panel-controls" class="menu-panel hidden" role="tabpanel">
+            <div class="controls-art">
+              <figure class="controls-figure">
+                <h4>KEYBOARD</h4>
+                <div id="controls-keyboard"></div>
+                <ul class="controls-legend">
+                  <li class="p1"><b>PLAYER 1</b> Arrows steer · Right Shift turbo · / fire</li>
+                  <li class="p2"><b>PLAYER 2</b> WASD steer · Left Shift turbo · Q fire</li>
+                  <li class="shared"><b>BOTH</b> Steer keys move through menus · Enter or Space select · Esc back or quit to menu</li>
+                </ul>
+              </figure>
+              <figure class="controls-figure">
+                <h4>XBOX CONTROLLER</h4>
+                <div id="controls-gamepad"></div>
+                <ul class="controls-legend">
+                  <li>D-pad or stick moves through menus, A selects, Menu goes back</li>
+                  <li>Controller 1 is Player 1, Controller 2 is Player 2</li>
+                </ul>
+              </figure>
+            </div>
+          </div>
         </div>
+        <p class="menu-help"><kbd>↑↓←→</kbd> MOVE <span>·</span> <kbd>ENTER</kbd> / <kbd>A</kbd> SELECT <span>·</span> <kbd>ESC</kbd> / <kbd>MENU</kbd> BACK</p>
       </div>
-      <p class="hint" id="gauntlet-best"></p>
-      <div style="display:flex;gap:16px;justify-content:center">
-        <button id="settings-toggle" class="neon-btn cyan">SETTINGS</button>
-        <button id="leaderboard-toggle" class="neon-btn magenta">LEADERBOARD</button>
-        <button id="controls-toggle" class="neon-btn cyan">CONTROLS</button>
-      </div>
-      <div id="controls-panel" class="hidden">
-        <div class="controls-art">
-          <figure class="controls-figure">
-            <h4>KEYBOARD</h4>
-            <div id="controls-keyboard"></div>
-            <ul class="controls-legend">
-              <li class="p1"><b>PLAYER 1</b> Arrows steer · Right Shift turbo · / fire</li>
-              <li class="p2"><b>PLAYER 2</b> WASD steer · Left Shift turbo · Q fire</li>
-              <li class="shared"><b>BOTH</b> Steer keys move through menus · Enter or Space select · Esc close panel or quit to menu</li>
-            </ul>
-          </figure>
-          <figure class="controls-figure">
-            <h4>XBOX CONTROLLER</h4>
-            <div id="controls-gamepad"></div>
-            <ul class="controls-legend">
-              <li>D-pad or stick moves through menus, A selects, Menu closes a panel</li>
-              <li>Controller 1 is Player 1, Controller 2 is Player 2</li>
-            </ul>
-          </figure>
-        </div>
-      </div>
-      <div class="skill-toggle settings-group hidden" role="group" aria-label="Skill level">
-        <span class="hint">SKILL</span>
-        <button data-skill="1" class="wall-btn">1</button>
-        <button data-skill="2" class="wall-btn active">2</button>
-        <button data-skill="3" class="wall-btn">3</button>
-        <button data-skill="4" class="wall-btn">4</button>
-        <button data-skill="5" class="wall-btn">5</button>
-      </div>
-      <div class="wall-toggle settings-group hidden" role="group" aria-label="Wall density">
-        <span class="hint">WALLS</span>
-        <button data-wall="none" class="wall-btn">NONE</button>
-        <button data-wall="low" class="wall-btn active">LOW</button>
-        <button data-wall="med" class="wall-btn">MED</button>
-        <button data-wall="high" class="wall-btn">HIGH</button>
-      </div>
-      <div class="target-toggle settings-group hidden" role="group" aria-label="Match target">
-        <span class="hint">FIRST TO</span>
-        <button data-target="3" class="wall-btn">3</button>
-        <button data-target="5" class="wall-btn active">5</button>
-        <button data-target="10" class="wall-btn">10</button>
-        <button data-target="15" class="wall-btn">15</button>
-      </div>
-      <div class="rival-toggle settings-group hidden" role="group" aria-label="CPU rival">
-        <span class="hint">RIVAL</span>
-        <button data-rival="drifter" class="wall-btn">DRIFTER</button>
-        <button data-rival="survivor" class="wall-btn">SURVIVOR</button>
-        <button data-rival="aggressor" class="wall-btn">AGGRESSOR</button>
-        <button data-rival="ambusher" class="wall-btn">AMBUSHER</button>
-        <button data-rival="grandmaster" class="wall-btn">GRANDMASTER</button>
-        <button data-rival="random" class="wall-btn active">RANDOM</button>
-      </div>
-      <div class="trail-toggle settings-group hidden" role="group" aria-label="Trail mode">
-        <span class="hint">TRAIL</span>
-        <button data-trail="tron" class="wall-btn active">TRON</button>
-        <button data-trail="fade" class="wall-btn">FADE</button>
-        <button data-trail="classic" class="wall-btn">CLASSIC</button>
-      </div>
-      <div class="music-toggle settings-group hidden" role="group" aria-label="Music track">
-        <span class="hint">MUSIC</span>
-        <button data-music="original" class="wall-btn">ORIGINAL</button>
-        <button data-music="darkwave" class="wall-btn">DARKWAVE</button>
-        <button data-music="sfx" class="wall-btn active">SFX ONLY</button>
-        <button data-music="custom" id="music-custom-btn" class="wall-btn">CUSTOM…</button>
-        <input type="file" id="music-file-input" accept="audio/*" class="hidden" />
-      </div>
-      <div class="color-toggle settings-group hidden" id="color-toggle" role="group" aria-label="Cycle color">
-        <span class="hint">COLOR</span>
-      </div>
-      <div class="gfx-toggle settings-group hidden" role="group" aria-label="Graphics quality">
-        <span class="hint">GRAPHICS</span>
-        <button data-gfx="high" class="wall-btn active">HIGH</button>
-        <button data-gfx="low" class="wall-btn">LOW</button>
-      </div>
-      <div id="leaderboard" class="leaderboard hidden"></div>
       <p class="hint" id="version">v0.20.17</p>
     </section>
 

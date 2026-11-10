@@ -226,7 +226,7 @@
 
   function computeAttractBox() {
     const canvasRect = canvas.getBoundingClientRect();
-    const btnRect = document.querySelector('.menu-buttons').getBoundingClientRect();
+    const btnRect = document.querySelector('.menu-shell').getBoundingClientRect();
     const pad = ATTRACT_BOX_PADDING;
     return {
       left: Math.max(0, Math.floor((btnRect.left - canvasRect.left) / cell) - pad),
@@ -782,13 +782,13 @@
     setOnlineStatus(''); // any room code shown is stale once we're back here
     state.phase = 'menu'; hud.classList.add('hidden'); Audio.stop();
     el('go-flash').classList.add('hidden');
-    el('leaderboard').innerHTML = renderBoard(Leaderboard.load(window.localStorage));
+    el('leaderboard').innerHTML = renderBoard(Leaderboard.load(window.localStorage))
+      || '<p class="board-empty">NO SURVIVAL TIMES YET<br><span>Play 1 Player Survival to set one</span></p>';
     const best = Gauntlet.loadBest(window.localStorage);
     el('gauntlet-best').textContent = best > 0
-      ? (best >= Gauntlet.STAGES.length ? '★ GRID CHAMPION ★'
-        : `GAUNTLET BEST: ${best} OF ${Gauntlet.STAGES.length} RIVALS`) : '';
+      ? (best >= Gauntlet.STAGES.length ? '★ CHAMPION' : `BEST ${best}/${Gauntlet.STAGES.length}`) : '';
     show(menu);
-    if (!menuItems().includes(state.menuSelected)) selectMenuItem(menuItems()[0]);
+    if (!menuItems().includes(state.menuSelected)) selectMenuItem(firstInPanel() || activeTab);
     state.last = performance.now();
     initAttract();
   }
@@ -811,36 +811,63 @@
       const r = b.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
-    const next = items[MenuNav.move(centers, items.indexOf(state.menuSelected), dir)];
+    const fromTab = isTab(state.menuSelected);
+    if (fromTab && dir === 'up') return; // nothing above the tab bar
+    let next = items[MenuNav.move(centers, items.indexOf(state.menuSelected), dir)];
+    if (isTab(next) && !fromTab) next = activeTab; // leaving a panel always lands on its own tab
     selectMenuItem(next);
+    if (isTab(next)) openTab(next); // highlighting a tab shows its panel
     next.scrollIntoView({ block: 'nearest' });
     // Landing on the room-code box makes it ready to type in.
     if (next.tagName === 'INPUT') next.focus();
     else if (document.activeElement.tagName === 'INPUT') document.activeElement.blur();
   }
 
-  // Settings, Leaderboard and Controls: at most one is open at a time.
-  const menuPanels = {
-    'settings-toggle': [...document.querySelectorAll('.settings-group')],
-    'leaderboard-toggle': [el('leaderboard')],
-    'controls-toggle': [el('controls-panel')],
-  };
+  // --- main menu tabs: MODE / SETTINGS / LEADERBOARD / CONTROLS ---
+  // Highlighting a tab (keys, controller, or resting the mouse on it) shows
+  // its panel in the card underneath; there is always exactly one open.
+  const menuTabs = [...document.querySelectorAll('.menu-tab')];
+  let activeTab = menuTabs[0];
+  const isTab = (node) => !!node && node.classList.contains('menu-tab');
+  const panelOf = (tab) => el(`panel-${tab.dataset.tab}`);
 
-  function closeMenuPanels() {
-    Object.values(menuPanels).flat().forEach((p) => p.classList.add('hidden'));
+  function openTab(tab) {
+    if (tab === activeTab) return;
+    activeTab = tab;
+    menuTabs.forEach((t) => {
+      const on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+      panelOf(t).classList.toggle('hidden', !on);
+    });
+    menu.querySelector('.menu-card').scrollTop = 0;
+    punch(panelOf(tab));
   }
 
-  // Esc / controller Menu on the menu screen: back out of the open panel.
-  function closeOpenMenuPanel() {
-    const open = Object.keys(menuPanels).find((id) => !menuPanels[id][0].classList.contains('hidden'));
-    if (!open) return;
-    closeMenuPanels();
-    if (!menuItems().includes(state.menuSelected)) selectMenuItem(el(open));
+  // The first thing to select inside the open panel, if it has anything.
+  function firstInPanel() {
+    const panel = panelOf(activeTab);
+    return menuItems().find((item) => panel.contains(item)) || null;
+  }
+
+  // Esc / controller Menu on the menu screen: from inside a panel, back up to
+  // its tab; from the tab bar, back to MODE.
+  function menuBack() {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') document.activeElement.blur();
+    if (state.menuSelected && !isTab(state.menuSelected)) return selectMenuItem(activeTab);
+    openTab(menuTabs[0]);
+    selectMenuItem(menuTabs[0]);
   }
 
   function activateMenuItem() {
-    if (menuItems().includes(state.menuSelected)) state.menuSelected.click();
-    else selectMenuItem(menuItems()[0]);
+    const sel = state.menuSelected;
+    if (!menuItems().includes(sel)) return selectMenuItem(firstInPanel() || activeTab);
+    if (isTab(sel)) { // Enter / A on a tab steps down into its panel
+      const first = firstInPanel();
+      if (first) { selectMenuItem(first); first.scrollIntoView({ block: 'nearest' }); }
+      return;
+    }
+    sel.click();
   }
 
   // wire input + menu buttons
@@ -871,7 +898,7 @@
         heading: snake.direction, queue: `${before}->${snake.queue.join('<')}` });
     },
     onAction,
-    onQuit: () => { if (state.phase !== 'menu') showMenu(); else closeOpenMenuPanel(); }, // on the title, Menu is "start"
+    onQuit: () => { if (state.phase !== 'menu') showMenu(); else menuBack(); }, // on the title, Menu is "start"
     onTurbo: (i, pressed) => {
       if (isOnline()) return;
       if (state.phase !== 'playing') return;
@@ -908,10 +935,19 @@
       beginGame(btn.dataset.mode);
     }));
   el('go-continue').addEventListener('click', onAction);
+  // A short pause before a hovered tab opens, so sweeping the mouse across
+  // the tab bar on the way down into a panel doesn't flick through them.
+  const TAB_HOVER_MS = 110;
+  let tabHoverTimer = null;
   menu.addEventListener('mouseover', (e) => {
     const item = e.target.closest('button, input:not([type="file"])');
-    if (item) selectMenuItem(item); // one highlight, whichever input moved it last
+    if (!item) return;
+    selectMenuItem(item); // one highlight, whichever input moved it last
+    clearTimeout(tabHoverTimer);
+    if (isTab(item)) tabHoverTimer = setTimeout(() => openTab(item), TAB_HOVER_MS);
   });
+  menu.addEventListener('mouseout', (e) => { if (isTab(e.target.closest('button'))) clearTimeout(tabHoverTimer); });
+  menuTabs.forEach((tab) => tab.addEventListener('click', () => { clearTimeout(tabHoverTimer); openTab(tab); }));
 
   const wallButtons = document.querySelectorAll('[data-wall]');
   wallButtons.forEach((btn) => btn.addEventListener('click', () => {
@@ -987,15 +1023,6 @@
     colorButtons.forEach((b) => b.classList.toggle('active', b === btn));
   }));
 
-  Object.entries(menuPanels).forEach(([toggleId, parts]) => {
-    el(toggleId).addEventListener('click', () => {
-      const wasOpen = !parts[0].classList.contains('hidden');
-      closeMenuPanels();
-      if (wasOpen) return;
-      parts.forEach((p) => p.classList.remove('hidden'));
-      parts[parts.length - 1].scrollIntoView({ block: 'nearest' });
-    });
-  });
   el('controls-keyboard').innerHTML = ControlsArt.keyboardSvg();
   el('controls-gamepad').innerHTML = ControlsArt.controllerSvg();
 
@@ -1036,7 +1063,12 @@
     }
   }
 
-  el('online-toggle').addEventListener('click', () => el('online-panel').classList.toggle('hidden'));
+  el('online-toggle').addEventListener('click', () => {
+    const panel = el('online-panel');
+    panel.classList.toggle('hidden');
+    el('online-toggle').classList.toggle('open', !panel.classList.contains('hidden'));
+    if (!panel.classList.contains('hidden')) panel.scrollIntoView({ block: 'nearest' });
+  });
   el('online-host').addEventListener('click', () => onlineConnectAnd(() =>
     Online.send({ type: 'host', settings: { wallDensity: state.wallDensity, trailMode: state.trailMode, matchTarget: state.matchTarget, skillLevel: state.skillLevel } })));
   el('online-join').addEventListener('click', () => {
